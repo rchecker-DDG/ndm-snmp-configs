@@ -1,0 +1,29 @@
+# NDM SNMP — Subnet autodiscovery
+# Sweep a CIDR range and monitor every responding device. Fill the <PLACEHOLDERS>
+# and drop in /etc/datadog-agent/conf.d/snmp.d/conf.yaml, then restart the Agent.
+
+init_config:
+  loader: core
+  use_device_id_as_hostname: true
+
+instances:
+  - network_address: <CIDR>             # e.g. 10.0.0.0/24. Mutually exclusive with ip_address
+    port: 161
+    snmp_version: 2
+    community_string: <COMMUNITY>        # shared read community across the subnet
+    profile: <PROFILE_NAME>              # optional; auto-detection still runs per device
+
+    # Skip addresses you don't want probed (gateways, broadcast, known hosts, etc.)
+    ignored_ip_addresses:
+      - <IP_TO_SKIP_1>
+      - <IP_TO_SKIP_2>
+
+    # Discovery tuning
+    discovery_interval: 3600             # seconds between full subnet sweeps
+    discovery_allowed_failures: 3        # consecutive failures before a found device is dropped
+    workers: 5                           # concurrent device-collection workers
+    discovery_workers: 2                 # core-only: concurrent discovery (probe) workers
+
+    tags:                                # applied to every discovered device
+      - 'site:<SITE>'
+      - 'env:<ENV>'

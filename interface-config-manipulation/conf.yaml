@@ -1,0 +1,43 @@
+# NDM SNMP — Interface config manipulation
+# Override wrong ifSpeed values, tag specific interfaces, and silence noisy ports.
+# Fill the <PLACEHOLDERS> and drop in /etc/datadog-agent/conf.d/snmp.d/conf.yaml,
+# then restart the Agent.
+
+init_config:
+  loader: core
+  use_device_id_as_hostname: true
+
+instances:
+  - ip_address: <DEVICE_IP>
+    snmp_version: 2
+    community_string: <COMMUNITY>
+    profile: <PROFILE_NAME>
+    tags:
+      - 'site:<SITE>'
+
+    interface_configs:
+      # --- Match by ifName: a sub-rate circuit ---
+      # The physical port is GigE, so SNMP ifSpeed reports 1 Gbps, but the carrier
+      # only delivers 50/25 Mbps. Without these overrides, utilization % is wrong.
+      - match_field: name               # match against ifName
+        match_value: GigabitEthernet0/1 # case-sensitive
+        in_speed: 50000000              # inbound bits/sec  -> 50 Mbps committed rate
+        out_speed: 25000000             # outbound bits/sec -> 25 Mbps committed rate
+        tags:
+          - 'role:wan-uplink'
+          - 'circuit:metro-e'
+
+      # --- Match by ifIndex: a port-channel / LAG ---
+      # Per-member ifSpeed under-reports the bundle. Force the aggregate speed so
+      # utilization reflects the whole LAG. ifName can churn, so match the stable index.
+      - match_field: index              # match against ifIndex
+        match_value: '1001'             # the port-channel's ifIndex
+        in_speed: 20000000000           # 20 Gbps (2x10G members)
+        out_speed: 20000000000
+        tags:
+          - 'role:port-channel'
+
+      # --- Silence a noisy / unmonitored access port ---
+      - match_field: name
+        match_value: GigabitEthernet0/47
+        disabled: true                  # stop collecting metrics for this interface

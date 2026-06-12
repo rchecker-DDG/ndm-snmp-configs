@@ -1,0 +1,17 @@
+# NDM SNMP — Single device, SNMP v2c, profile-based
+# The simplest realistic starting point. Fill the <PLACEHOLDERS> and drop in
+# /etc/datadog-agent/conf.d/snmp.d/conf.yaml, then restart the Agent.
+
+init_config:
+  loader: core                      # core (Go) collector — recommended; "python" is the legacy default
+  use_device_id_as_hostname: true   # report under the NDM device id so custom tags bind to the device
+
+instances:
+  - ip_address: <DEVICE_IP>         # single device. Mutually exclusive with network_address
+    port: 161                       # default SNMP port; shown for clarity
+    snmp_version: 2                 # 2 == v2c
+    community_string: <COMMUNITY>   # v2c read community string
+    profile: <PROFILE_NAME>         # e.g. cisco-nexus. Omit to let the Agent auto-detect via sysObjectID
+    tags:                           # instance-wide tags applied to the device and all its metrics
+      - 'site:<SITE>'
+      - 'env:<ENV>'

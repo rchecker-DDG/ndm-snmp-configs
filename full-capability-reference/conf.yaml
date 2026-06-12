@@ -1,0 +1,96 @@
+# NDM SNMP — Full-capability reference ("kitchen sink")
+# Exercises as many fields as can validly coexist in one core-loader file:
+# init_config globals + ping, a v3 instance with profile, topology, VPN, custom
+# metrics + metric_tags, interface_configs, and device tags.
+# Fill the <PLACEHOLDERS> and drop in /etc/datadog-agent/conf.d/snmp.d/conf.yaml,
+# then restart the Agent.
+
+init_config:
+  loader: core                        # core (Go) collector — recommended
+  use_device_id_as_hostname: true
+  oid_batch_size: 10                  # OIDs fetched per SNMP request (tune for device limits)
+  min_collection_interval: 60         # core-only: seconds between collection runs
+
+  # Metrics collected from every instance that opts in with use_global_metrics: true
+  global_metrics:
+    - OID: 1.3.6.1.2.1.1.3.0          # sysUpTime
+      name: sysUpTimeInstance
+
+  # ICMP reachability alongside SNMP polling
+  ping:
+    enabled: true
+    count: 4                          # echo requests per check run
+    timeout: 3000                     # per-ping timeout (ms)
+    interval: 10                      # delay between pings (ms)
+    linux:
+      use_raw_socket: false           # true requires CAP_NET_RAW / root
+
+instances:
+  - ip_address: <DEVICE_IP>           # using a single device; network_address is mutually exclusive
+    port: 161
+    snmp_version: 3
+    timeout: 5                        # per-request timeout (seconds)
+    retries: 3
+
+    # v3 authPriv credentials
+    user: <SNMP_V3_USER>
+    authProtocol: SHA256
+    authKey: <AUTH_KEY>
+    privProtocol: AES256
+    privKey: <PRIV_KEY>
+    context_name: <CONTEXT_NAME>      # optional; remove if unused
+
+    profile: <PROFILE_NAME>           # base profile; custom metrics below are additive
+    use_global_metrics: true          # pull in init_config.global_metrics
+    collect_topology: true            # LLDP/CDP topology mapping (default true)
+    collect_vpn: true                 # VPN tunnel metrics (default false)
+
+    # Instance-wide device tags
+    tags:
+      - 'site:<SITE>'
+      - 'env:<ENV>'
+      - 'team:<TEAM>'
+
+    # Custom table metric on top of the profile (per-interface inbound errors)
+    metrics:
+      - MIB: IF-MIB
+        table:
+          OID: 1.3.6.1.2.1.2.2
+          name: ifTable
+        symbols:
+          - OID: 1.3.6.1.2.1.2.2.1.14
+            name: ifInErrors
+        metric_tags:
+          - tag: interface              # tag each row by its ifDescr
+            symbol:
+              OID: 1.3.6.1.2.1.2.2.1.2
+              name: ifDescr
+
+    # Device-level metric_tags from scalar SNMP values
+    metric_tags:
+      - OID: 1.3.6.1.2.1.1.5.0          # sysName
+        symbol: sysName
+        tag: snmp_host
+
+    # Per-interface speed overrides, tags, and silencing
+    interface_configs:
+      - match_field: name
+        match_value: GigabitEthernet0/1
+        in_speed: 1000000000            # 1 Gbps in bits/sec
+        out_speed: 1000000000
+        tags:
+          - 'role:uplink'
+      - match_field: name
+        match_value: GigabitEthernet0/48
+        disabled: true                  # silence an unused port
+
+# ---------------------------------------------------------------------------
+# Deliberately OMITTED from this file, and why:
+#   * network_address          - mutually exclusive with ip_address (used here)
+#   * loader: python            - core is recommended; nothing below needs python
+#   * refresh_oids_cache_interval, optimize_mib_memory_usage, mibs_folder,
+#     ignore_nonincreasing_oid - python-only init_config params
+#   * enforce_mib_constraints, bulk_threshold - python-only instance params
+#   * privProtocol: 3DES        - python-only; AES256 is used instead
+# To use any of the above, set loader: python and flag it in a comment.
+# ---------------------------------------------------------------------------

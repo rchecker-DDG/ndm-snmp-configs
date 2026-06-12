@@ -1,0 +1,31 @@
+# NDM SNMP — Single device, SNMP v3 (authPriv)
+# Full v3 credential block: both authentication AND privacy (encryption) enabled.
+# Fill the <PLACEHOLDERS> and drop in /etc/datadog-agent/conf.d/snmp.d/conf.yaml,
+# then restart the Agent.
+
+init_config:
+  loader: core                      # core (Go) collector — recommended
+  use_device_id_as_hostname: true   # report under the NDM device id
+
+instances:
+  - ip_address: <DEVICE_IP>         # single device
+    port: 161
+    snmp_version: 3                 # v3 — credential block below replaces community_string
+
+    # --- v3 authentication (proves who you are) ---
+    user: <SNMP_V3_USER>            # the USM security name; required for v3
+    authProtocol: SHA256            # one of: MD5, SHA, SHA224, SHA256, SHA384, SHA512
+    authKey: <AUTH_KEY>             # the authentication passphrase
+
+    # --- v3 privacy / encryption (authPriv) ---
+    privProtocol: AES256            # one of: DES, AES, AES192, AES192C, AES256, AES256C (3DES is python-only)
+    privKey: <PRIV_KEY>             # the privacy passphrase
+
+    # --- optional v3 context (only if your device uses contexts) ---
+    context_name: <CONTEXT_NAME>    # e.g. a VRF/context name; omit if not used
+    # context_engine_id: <ENGINE_ID>  # usually auto-discovered; set only if required
+
+    profile: <PROFILE_NAME>         # omit to auto-detect
+    tags:
+      - 'site:<SITE>'
+      - 'env:<ENV>'
