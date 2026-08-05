@@ -1,0 +1,612 @@
+# =============================================================================
+# datadog.yaml — Comprehensive NDM / SNMP Reference
+# =============================================================================
+# This file covers every NDM-relevant stanza that lives in the main Datadog
+# Agent configuration (datadog.yaml). It is deliberately exhaustive so you can
+# uncomment and adapt only the blocks you need.
+#
+# File location: /etc/datadog-agent/datadog.yaml
+#
+# NDM capabilities configured here:
+#   1. Global namespace
+#   2. Autodiscovery  (new-style: network_devices.autodiscovery — Agent 7.54+)
+#       2a. Single subnet, SNMPv2c
+#       2b. Multi-subnet with mixed v2c / v3 credentials
+#       2c. Large network (high concurrency)
+#       2d. Interface overrides + granular tagging per subnet
+#       2e. Topology (LLDP/CDP) + VPN collection
+#       2f. IP deduplication across overlapping subnets (Agent 7.67+)
+#       2g. Per-subnet ping (ICMP reachability alongside SNMP)
+#   3. Legacy autodiscovery  (snmp_listener — pre-7.54 syntax)
+#   4. SNMP Traps
+#       4a. SNMPv2c trap receiver
+#       4b. SNMPv3 trap receiver — single user
+#       4c. SNMPv3 trap receiver — multiple users (Agent 7.51+)
+#   5. NetFlow / sFlow / IPFIX
+#       5a. Single flow type (NetFlow v9)
+#       5b. Multiple flow types on separate ports
+#       5c. High-throughput (multiple workers per listener)
+#       5d. Reverse DNS enrichment of private IPs
+#       5e. Flow volume capping (Agent 7.75.1+)
+#
+# NOTE — Individual device instances (ip_address-based) are NOT configured
+# in datadog.yaml; they belong in /etc/datadog-agent/conf.d/snmp.d/conf.yaml.
+# See the companion conf.yaml templates in the ndm-snmp-configs repo for those.
+# You can, however, target a single device from this file by using a /32 CIDR
+# under network_devices.autodiscovery.configs[].network_address.
+# =============================================================================
+
+
+# =============================================================================
+# 1. GLOBAL NAMESPACE
+# =============================================================================
+# Purpose: Tag every device reported by this Agent with a logical namespace so
+#          that devices with overlapping private IPs (e.g. two different sites
+#          sharing the 10.x.x.x space) can be uniquely identified in Datadog.
+#
+# USE CASE: Multi-site deployments, separate monitoring zones, or any topology
+#           where the same private IP could exist on more than one network.
+#
+# Required on ALL Agents when you use namespace tags on any Agent.
+# If you namespace one Agent, namespace them all — do not mix namespaced and
+# un-namespaced Agents in the same account.
+# =============================================================================
+
+network_devices:
+  namespace: <SITE_OR_DATACENTER_NAME>   # e.g. "nyc-dc1", "paris-campus"
+                                         # Default if omitted: "default"
+
+
+# =============================================================================
+# 2. AUTODISCOVERY  (network_devices.autodiscovery — Agent 7.54+)
+# =============================================================================
+# Purpose: The Agent sweeps one or more CIDR subnets, probes each IP with SNMP,
+#          and automatically creates a check instance for every device that
+#          responds. No manual IP list required.
+#
+# How it works:
+#   1. discovery_workers probe each IP in the CIDR concurrently.
+#   2. Responding IPs are passed to workers for full metric collection.
+#   3. Discovery repeats every discovery_interval seconds.
+#   4. A device is dropped after discovery_allowed_failures consecutive misses.
+#
+# Prerequisite: Agent 7.54+ for this block syntax.
+#              (For older agents use section 3, snmp_listener.)
+# =============================================================================
+
+network_devices:
+  namespace: <NAMESPACE>
+
+  autodiscovery:
+
+    # -----------------------------------------------------------------------
+    # Global settings — apply to every config block unless overridden locally
+    # -----------------------------------------------------------------------
+    loader: core                    # "core" (recommended Go collector) or "python"
+    use_device_id_as_hostname: true # emit host:device:<namespace>:<ip> — required
+                                    # for custom tags to attach correctly
+    workers: 100                    # concurrent workers for metric collection
+    discovery_interval: 3600        # seconds between full subnet sweeps (default 3600)
+    discovery_allowed_failures: 3   # consecutive probe failures before dropping a device
+
+    # Agent 7.67+: discard duplicate devices found across overlapping subnets
+    use_deduplication: false        # set true when two config blocks may discover
+                                    # the same IP (e.g. /16 + /24 overlap)
+
+    # -------------------------------------------------------------------------
+    # 2a. Single subnet — SNMPv2c
+    # -------------------------------------------------------------------------
+    # USE CASE: A single flat network segment with a shared community string.
+    #           Typical for small to medium campus or branch deployments.
+    # -------------------------------------------------------------------------
+    configs:
+      - network_address: 10.0.0.0/24        # CIDR to sweep
+        snmp_version: 2
+        port: 161
+        community_string: '<COMMUNITY_STRING>'  # wrap in single quotes
+        tags:
+          - 'site:<SITE>'
+          - 'env:<ENV>'
+
+    # -------------------------------------------------------------------------
+    # 2b. Multi-subnet with mixed v2c / v3 credentials
+    # -------------------------------------------------------------------------
+    # USE CASE: Multiple VLANs or network segments, some using the legacy v2c
+    #           community string and others locked down to SNMPv3 authPriv.
+    # -------------------------------------------------------------------------
+    configs:
+      # Segment A — SNMPv2c (e.g. legacy access-layer switches)
+      - network_address: 10.10.0.0/24
+        snmp_version: 2
+        port: 161
+        community_string: '<COMMUNITY_STRING_A>'
+        tags:
+          - 'site:hq'
+          - 'tier:access'
+
+      # Segment B — SNMPv3 authPriv (e.g. core / distribution routers)
+      - network_address: 10.20.0.0/24
+        snmp_version: 3
+        port: 161
+        user: '<SNMP_V3_USER>'
+        authProtocol: SHA256          # MD5 | SHA | SHA224 | SHA256 | SHA384 | SHA512
+        authKey: '<AUTH_KEY>'
+        privProtocol: AES256          # DES | AES | AES192 | AES192C | AES256 | AES256C
+        privKey: '<PRIV_KEY>'
+        tags:
+          - 'site:hq'
+          - 'tier:core'
+
+      # Single device via /32 — targeted discovery without a conf.yaml instance
+      # USE CASE: One-off device that you want managed via datadog.yaml, not conf.yaml
+      - network_address: 192.168.1.254/32
+        snmp_version: 2
+        port: 161
+        community_string: '<COMMUNITY_STRING>'
+        tags:
+          - 'role:firewall'
+          - 'site:dmz'
+
+    # -------------------------------------------------------------------------
+    # 2c. Large network — high concurrency
+    # -------------------------------------------------------------------------
+    # USE CASE: Thousands of devices across a /16 or multiple large /24s.
+    #           Increase workers to reduce sweep time; tune discovery_interval
+    #           to avoid hammering the network too frequently.
+    # -------------------------------------------------------------------------
+    configs:
+      - network_address: 10.0.0.0/16
+        snmp_version: 2
+        port: 161
+        community_string: '<COMMUNITY_STRING>'
+        workers: 200                  # override global; drives parallel collection
+        discovery_workers: 20         # parallel probe workers for this subnet
+        discovery_interval: 7200      # sweep every 2 h on large subnets
+        discovery_allowed_failures: 5 # more tolerance on flaky large networks
+        ignored_ip_addresses:         # skip gateways, broadcast, jump boxes, etc.
+          - 10.0.0.1
+          - 10.0.0.2
+          - 10.0.255.255
+        tags:
+          - 'site:campus'
+
+    # -------------------------------------------------------------------------
+    # 2d. Granular interface overrides + tagging per subnet
+    # -------------------------------------------------------------------------
+    # USE CASE: ISP hand-off circuits where the physical port is 1 Gbps but the
+    #           provisioned bandwidth is 100 Mbps; need accurate utilisation %.
+    #           Also: silence unused ports, tag uplinks for dashboards.
+    # -------------------------------------------------------------------------
+    configs:
+      - network_address: 172.16.0.0/24
+        snmp_version: 2
+        port: 161
+        community_string: '<COMMUNITY_STRING>'
+        tags:
+          - 'site:edge'
+          - 'env:prod'
+
+        # Per-interface overrides applied to every device discovered in this subnet
+        interface_configs:
+          # Override provisioned circuit speed (physical port != circuit bandwidth)
+          - match_field: name           # "name" = ifDescr; "index" = ifIndex
+            match_value: GigabitEthernet0/0/0
+            in_speed: 100000000         # 100 Mbps in bits/s
+            out_speed: 100000000
+            tags:
+              - 'role:wan-uplink'
+              - 'provider:isp-a'
+
+          # Tag a port without changing its speed
+          - match_field: name
+            match_value: GigabitEthernet0/0/1
+            tags:
+              - 'role:core-link'
+
+          # Silence (disable monitoring on) a known unused port
+          - match_field: name
+            match_value: GigabitEthernet0/0/7
+            disabled: true
+
+          # Match by ifIndex (useful when interface names are unstable/auto-generated)
+          - match_field: index
+            match_value: '10'
+            in_speed: 50000000          # 50 Mbps
+            out_speed: 50000000
+            tags:
+              - 'role:storage-link'
+
+    # -------------------------------------------------------------------------
+    # 2e. Topology (LLDP/CDP) + VPN collection
+    # -------------------------------------------------------------------------
+    # USE CASE: Populate the NDM Topology Map; monitor IPsec/GRE VPN tunnels
+    #           alongside standard SNMP metrics. VPN data requires devices that
+    #           export CISCO-IPSEC-FLOW-MONITOR-MIB or similar.
+    # -------------------------------------------------------------------------
+    configs:
+      - network_address: 10.30.0.0/24
+        snmp_version: 3
+        port: 161
+        user: '<SNMP_V3_USER>'
+        authProtocol: SHA256
+        authKey: '<AUTH_KEY>'
+        privProtocol: AES256
+        privKey: '<PRIV_KEY>'
+        collect_topology: true        # LLDP / CDP neighbour data (default: true)
+        collect_vpn: true             # VPN tunnel + route table metrics (default: false)
+        tags:
+          - 'site:wan-edge'
+          - 'role:vpn-concentrator'
+
+    # -------------------------------------------------------------------------
+    # 2f. IP deduplication across overlapping subnets (Agent 7.67+)
+    # -------------------------------------------------------------------------
+    # USE CASE: You define a broad /16 sweep AND a narrower /24 for a critical
+    #           segment with different credentials. Without deduplication the
+    #           same device could be polled twice.
+    # -------------------------------------------------------------------------
+    autodiscovery:
+      use_deduplication: true         # last-wins: more-specific subnet config wins
+      configs:
+        - network_address: 10.0.0.0/16
+          snmp_version: 2
+          community_string: '<COMMUNITY_STRING>'
+          tags:
+            - 'tier:general'
+
+        - network_address: 10.0.100.0/24    # subset of /16 above; different creds
+          snmp_version: 3
+          user: '<SNMP_V3_USER>'
+          authProtocol: SHA256
+          authKey: '<AUTH_KEY>'
+          privProtocol: AES256
+          privKey: '<PRIV_KEY>'
+          tags:
+            - 'tier:critical'
+
+    # -------------------------------------------------------------------------
+    # 2g. Per-subnet ICMP ping alongside SNMP polling
+    # -------------------------------------------------------------------------
+    # USE CASE: Detect devices that are reachable on the network (ICMP) but not
+    #           responding to SNMP — e.g., to differentiate "device is down" from
+    #           "SNMP is misconfigured". Ping data surfaces in NDM device views.
+    #
+    # Linux note: unprivileged UDP sockets are used by default.
+    # If your kernel rejects them, set use_raw_socket: true AND enable the
+    # system-probe ping module in system-probe.yaml.
+    # -------------------------------------------------------------------------
+    configs:
+      - network_address: 10.40.0.0/24
+        snmp_version: 2
+        port: 161
+        community_string: '<COMMUNITY_STRING>'
+        ping:
+          enabled: true
+          count: 4             # echo requests per check run
+          timeout: 3000        # per-ping timeout in milliseconds
+          interval: 20         # delay between individual pings (ms)
+          linux:
+            use_raw_socket: false   # true requires CAP_NET_RAW + system-probe ping module
+
+
+# =============================================================================
+# 3. LEGACY AUTODISCOVERY  (snmp_listener — pre-Agent 7.54)
+# =============================================================================
+# Purpose: Same subnet-sweep model as section 2, but using the older
+#          snmp_listener key.  Use this only if you cannot upgrade to 7.54+.
+#          All Agent 7.54+ deployments should use network_devices.autodiscovery.
+#
+# USE CASE: Locked Agent version on an air-gapped network; brownfield
+#           deployments that have not yet upgraded beyond 7.53.
+# =============================================================================
+
+snmp_listener:
+  loader: core
+  use_device_id_as_hostname: true
+  workers: 100
+  discovery_interval: 3600
+  discovery_allowed_failures: 3
+  configs:
+    # SNMPv2c subnet
+    - network_address: 10.0.0.0/24
+      snmp_version: 2
+      port: 161
+      community_string: '<COMMUNITY_STRING>'
+      tags:
+        - 'site:<SITE>'
+
+    # SNMPv3 subnet
+    - network_address: 10.20.0.0/24
+      snmp_version: 3
+      port: 161
+      user: '<SNMP_V3_USER>'
+      authProtocol: SHA256
+      authKey: '<AUTH_KEY>'
+      privProtocol: AES256
+      privKey: '<PRIV_KEY>'
+      tags:
+        - 'site:<SITE>'
+        - 'tier:core'
+
+
+# =============================================================================
+# 4. SNMP TRAPS
+# =============================================================================
+# Purpose: The Agent listens for unsolicited SNMP trap PDUs sent by devices
+#          when events occur (link down, hardware failure, threshold crossed, etc.)
+#          Traps are forwarded as logs (source:snmp-traps) without requiring
+#          logs_enabled: true. Requires Agent 7.37+.
+#
+# Firewall: Allow inbound UDP on the configured port from all monitored devices.
+# Default port 162: binding requires elevated permissions — see 4a note below.
+# =============================================================================
+
+network_devices:
+  namespace: <NAMESPACE>
+
+  # ---------------------------------------------------------------------------
+  # 4a. SNMPv2c trap receiver  (community-string authentication)
+  # ---------------------------------------------------------------------------
+  # USE CASE: Legacy infrastructure sending v1/v2c traps. Easiest starting
+  #           point — add your community strings to the allowlist.
+  #
+  # Port 9162 (unprivileged) is used here. To use the standard port 162:
+  #   sudo setcap CAP_NET_BIND_SERVICE=+ep \
+  #     /opt/datadog-packages/datadog-agent/stable/bin/agent/agent
+  #   Re-run after every Agent upgrade.
+  # ---------------------------------------------------------------------------
+  snmp_traps:
+    enabled: true
+    port: 9162                       # non-privileged; change to 162 after setcap
+    bind_host: 0.0.0.0              # listen on all interfaces
+    community_strings:              # allowlist — traps from unlisted strings are dropped
+      - '<COMMUNITY_STRING_1>'
+      - '<COMMUNITY_STRING_2>'
+
+  # ---------------------------------------------------------------------------
+  # 4b. SNMPv3 trap receiver — single user
+  # ---------------------------------------------------------------------------
+  # USE CASE: Modern infrastructure where traps are authenticated and encrypted.
+  #           Single-user configuration (most common).
+  # ---------------------------------------------------------------------------
+  snmp_traps:
+    enabled: true
+    port: 9162
+    bind_host: 0.0.0.0
+    users:
+      - user: '<SNMP_V3_USER>'
+        authKey: '<AUTH_KEY>'
+        authProtocol: SHA             # MD5 | SHA | SHA224 | SHA256 | SHA384 | SHA512
+        privKey: '<PRIV_KEY>'
+        privProtocol: AES             # DES | AES | AES192 | AES192C | AES256 | AES256C
+
+  # ---------------------------------------------------------------------------
+  # 4c. SNMPv3 trap receiver — multiple users (Agent 7.51+)
+  # ---------------------------------------------------------------------------
+  # USE CASE: Heterogeneous device fleet where different vendors/teams use
+  #           different v3 credentials for sending traps. List all combinations.
+  # ---------------------------------------------------------------------------
+  snmp_traps:
+    enabled: true
+    port: 9162
+    bind_host: 0.0.0.0
+    users:
+      # Cisco routers (SHA256 + AES256)
+      - user: 'cisco-trap-user'
+        authKey: '<CISCO_AUTH_KEY>'
+        authProtocol: SHA256
+        privKey: '<CISCO_PRIV_KEY>'
+        privProtocol: AES256
+
+      # Juniper switches (SHA + AES)
+      - user: 'juniper-trap-user'
+        authKey: '<JUNIPER_AUTH_KEY>'
+        authProtocol: SHA
+        privKey: '<JUNIPER_PRIV_KEY>'
+        privProtocol: AES
+
+      # Palo Alto firewalls (MD5 + DES — legacy, minimize use)
+      - user: 'paloalto-trap-user'
+        authKey: '<PA_AUTH_KEY>'
+        authProtocol: MD5
+        privKey: '<PA_PRIV_KEY>'
+        privProtocol: DES
+
+      # Combined v2c + v3: also allow community-string traps alongside v3
+      community_strings:
+        - '<LEGACY_COMMUNITY_STRING>'
+
+
+# =============================================================================
+# 5. NETFLOW / SFLOW / IPFIX
+# =============================================================================
+# Purpose: Receive flow telemetry exported by routers, switches, and firewalls.
+#          Flow data is stored as logs enriched with NDM device/interface metadata.
+#          Requires Agent 7.45+.
+#
+# Setup:  Configure devices to export flows to the Agent host IP on the
+#         configured ports. Ensure firewall allows inbound UDP on those ports.
+# =============================================================================
+
+network_devices:
+  namespace: <NAMESPACE>
+
+  # ---------------------------------------------------------------------------
+  # 5a. Single flow type — NetFlow v9
+  # ---------------------------------------------------------------------------
+  # USE CASE: Homogeneous Cisco environment exporting NetFlow v9.
+  #           Simplest setup; one listener, one port.
+  # ---------------------------------------------------------------------------
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9           # netflow5 | netflow9 | ipfix | sflow5
+        port: 2055
+
+  # ---------------------------------------------------------------------------
+  # 5b. Multiple flow types on separate ports
+  # ---------------------------------------------------------------------------
+  # USE CASE: Mixed-vendor network: older Cisco kit on NetFlow v5, newer on v9,
+  #           Juniper on IPFIX, and HP/Arista on sFlow.
+  # ---------------------------------------------------------------------------
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow5
+        port: 2056
+      - flow_type: netflow9
+        port: 2055
+      - flow_type: ipfix
+        port: 4739
+      - flow_type: sflow5
+        port: 6343
+
+  # ---------------------------------------------------------------------------
+  # 5c. High-throughput configuration (multiple workers per listener)
+  # ---------------------------------------------------------------------------
+  # USE CASE: High-volume environments (>50,000 flow packets/second).
+  #           Add workers matching your CPU core count to avoid UDP drops.
+  #           Monitor with: netstat -s | grep "receive errors"
+  # ---------------------------------------------------------------------------
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9
+        port: 2055
+        workers: 8              # set to number of CPU cores on the Agent host
+
+      - flow_type: sflow5
+        port: 6343
+        workers: 4
+
+  # ---------------------------------------------------------------------------
+  # 5d. Reverse DNS enrichment of private IPs
+  # ---------------------------------------------------------------------------
+  # USE CASE: Add human-readable hostnames to source/destination IPs in flow
+  #           records (e.g., "db-prod-01.internal" instead of "10.0.1.42").
+  #           DNS results are cached and rate-limited automatically.
+  # ---------------------------------------------------------------------------
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9
+        port: 2055
+    reverse_dns_enrichment_enabled: true    # performs PTR lookups on private IPs
+
+  # ---------------------------------------------------------------------------
+  # 5e. Flow volume capping — limit records per flush interval (Agent 7.75.1+)
+  # ---------------------------------------------------------------------------
+  # USE CASE: Cost control in high-cardinality environments. The Agent keeps only
+  #           the top-N flows by byte count per 5-minute flush window.
+  #           Estimate daily max: N * (1440 / 5) = N * 288 records/day.
+  #           e.g. 10,000 * 288 = 2,880,000 flows/day.
+  #
+  # Monitoring metrics emitted when capping is active:
+  #   ndm.flow_truncation.flows_total
+  #   ndm.flow_truncation.flows_kept
+  #   ndm.flow_truncation.flows_dropped
+  #   ndm.flow_truncation.keep_ratio
+  # ---------------------------------------------------------------------------
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9
+        port: 2055
+    aggregator_max_flows_per_flush_interval: 10000   # top 10k flows per 5-min window
+
+
+# =============================================================================
+# COMPLETE REFERENCE — All NDM stanzas in one block
+# =============================================================================
+# Use this as a copy-paste starting point and delete what you don't need.
+# Replace ALL <ANGLE_BRACKET> placeholders before deploying.
+# =============================================================================
+
+network_devices:
+  namespace: <NAMESPACE>
+
+  autodiscovery:
+    loader: core
+    use_device_id_as_hostname: true
+    workers: 100
+    discovery_interval: 3600
+    discovery_allowed_failures: 3
+    use_deduplication: false
+
+    configs:
+      # --- SNMPv2c subnet ---
+      - network_address: <CIDR_V2C>
+        snmp_version: 2
+        port: 161
+        community_string: '<COMMUNITY_STRING>'
+        ignored_ip_addresses:
+          - <IP_TO_EXCLUDE_1>
+          - <IP_TO_EXCLUDE_2>
+        collect_topology: true
+        collect_vpn: false
+        tags:
+          - 'site:<SITE>'
+          - 'env:<ENV>'
+        ping:
+          enabled: false
+          count: 2
+          timeout: 3000
+          interval: 20
+          linux:
+            use_raw_socket: false
+        interface_configs:
+          - match_field: name
+            match_value: <INTERFACE_NAME>
+            in_speed: <SPEED_BPS>
+            out_speed: <SPEED_BPS>
+            tags:
+              - '<TAG_KEY>:<TAG_VALUE>'
+            disabled: false
+
+      # --- SNMPv3 authPriv subnet ---
+      - network_address: <CIDR_V3>
+        snmp_version: 3
+        port: 161
+        user: '<SNMP_V3_USER>'
+        authProtocol: SHA256
+        authKey: '<AUTH_KEY>'
+        privProtocol: AES256
+        privKey: '<PRIV_KEY>'
+        context_name: '<CONTEXT_NAME>'   # optional; remove if unused
+        collect_topology: true
+        collect_vpn: true
+        tags:
+          - 'site:<SITE>'
+          - 'tier:core'
+
+  snmp_traps:
+    enabled: true
+    port: 9162
+    bind_host: 0.0.0.0
+    community_strings:
+      - '<COMMUNITY_STRING>'
+    users:
+      - user: '<SNMP_V3_USER>'
+        authKey: '<AUTH_KEY>'
+        authProtocol: SHA256
+        privKey: '<PRIV_KEY>'
+        privProtocol: AES256
+
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow5
+        port: 2056
+      - flow_type: netflow9
+        port: 2055
+        workers: 4
+      - flow_type: ipfix
+        port: 4739
+      - flow_type: sflow5
+        port: 6343
+    reverse_dns_enrichment_enabled: false
+    aggregator_max_flows_per_flush_interval: 0   # 0 = no cap (default)
+
+# =============================================================================
+# End of datadog.yaml NDM / SNMP reference
+# =============================================================================
