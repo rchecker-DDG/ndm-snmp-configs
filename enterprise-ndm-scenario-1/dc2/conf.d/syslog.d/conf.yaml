@@ -1,0 +1,29 @@
+# =============================================================================
+# DC2 — Network Device Syslog Listener  ·  conf.d/syslog.d/conf.yaml
+# Device senders: cEdge-DC2, PA-3220, F5-DR, C9500-DR, C9300-DC2
+# iptables: -t nat -A PREROUTING -p udp --dport 514 -j REDIRECT --to-port 5014
+#           -t nat -A PREROUTING -p tcp --dport 514 -j REDIRECT --to-port 5014
+# =============================================================================
+
+logs:
+  - type: udp
+    port: 5014
+    service: network-syslog
+    source: syslog
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "log_source:network-device"
+      - "tier:dr"
+      - "env:production"
+
+  - type: tcp
+    port: 5014
+    service: network-syslog
+    source: syslog
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "log_source:network-device"
+      - "tier:dr"
+      - "env:production"

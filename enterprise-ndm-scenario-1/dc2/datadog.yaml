@@ -1,0 +1,192 @@
+# =============================================================================
+# DC2 — DR Datacenter  ·  Datadog Agent: /etc/datadog-agent/datadog.yaml
+# Namespace  : dc2
+# Subnet     : 10.1.0.0/24
+# Agent req  : >= 7.67
+# Devices    : cEdge-DC2, PA-3220, F5-DR, C9500-DR, C9300-DC2,
+#              Meraki MR46, Meraki MS250
+# Features   : remote-config · SNMP v3 · topology · VPN · traps ·
+#              NetFlow v9 · IPFIX · sFlow · syslog · Agent HA
+# Generated  : 2026-08-05
+# =============================================================================
+
+# ─── Core ─────────────────────────────────────────────────────────────────────
+api_key: <DD_API_KEY>
+site: datadoghq.com
+hostname: dd-agent-dc2-01          # run dd-agent-dc2-02 as HA standby
+
+cmd_port:      5001
+agent_ipc_port: 5004
+
+# ─── Remote Configuration ─────────────────────────────────────────────────────
+remote_configuration:
+  enabled: true
+
+# ─── Process / APM (disabled on dedicated network agent) ─────────────────────
+process_config:
+  enabled: false
+apm_config:
+  enabled: false
+
+# ─── Log Collection ───────────────────────────────────────────────────────────
+logs_enabled: true
+logs_config:
+  use_http: true
+  compression_level: 6
+
+# ─── Network Devices ──────────────────────────────────────────────────────────
+network_devices:
+
+  namespace: dc2
+
+  # ── SNMP Autodiscovery ─────────────────────────────────────────────────────
+  autodiscovery:
+    use_deduplication: true     # Agent HA: dc2-01 + dc2-02 dedup by device ID
+    workers:            6
+    discovery_interval: 3600
+    loader:             core
+    collect_device_metadata: true
+    use_device_id_as_hostname: true
+
+    default_v3: &v3creds
+      snmp_version: 3
+      username:     dd_snmpv3
+      authProtocol: SHA256
+      authKey:      "{{ DD_SNMP_AUTH_KEY }}"
+      privProtocol: AES256
+      privKey:      "{{ DD_SNMP_PRIV_KEY }}"
+      context:      ""
+
+    configs:
+
+      # ── DC2 main infra (10.1.0.0/24) ────────────────────────────────────
+      #    cEdge-DC2 (.1) · PA-3220 (.2) · F5-DR (.10) · C9500-DR (.20) ·
+      #    C9300-DC2 (.21) · Meraki MR46 (.40) · Meraki MS250 (.41)
+      - network_address: 10.1.0.0/24
+        <<: *v3creds
+        collect_topology: true
+        collect_vpn:      true
+        ping:
+          enabled:  true
+          count:    5
+          interval: 1000
+          timeout:  2000
+        tags:
+          - "site:dc2"
+          - "region:us-east"
+          - "role:datacenter"
+          - "tier:dr"
+          - "env:production"
+          - "managed_by:netops"
+        interface_configs:
+          # cEdge-DC2 (10.1.0.1)
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/0"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:att"
+              - "wan_circuit:dc2-att-mpls-primary"
+              - "sdwan_tloc_color:mpls"
+              - "redundancy:primary"
+            speed_override: 1000000000
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/1"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:comcast"
+              - "wan_circuit:dc2-comcast-dia-secondary"
+              - "sdwan_tloc_color:biz-internet"
+              - "redundancy:secondary"
+            speed_override: 1000000000
+          - match_field: interface_name
+            match_value: "GigabitEthernet1"
+            tags:
+              - "intf_role:lan-uplink"
+              - "connected_to:c9500-dr"
+          # PA-3220 (10.1.0.2)
+          - match_field: interface_name
+            match_value: "ethernet1/1"
+            tags: ["intf_role:untrust", "fw_zone:untrust", "connected_to:cedge-dc2"]
+            speed_override: 10000000000
+          - match_field: interface_name
+            match_value: "ethernet1/2"
+            tags: ["intf_role:trust", "fw_zone:trust", "connected_to:f5-dr"]
+            speed_override: 10000000000
+          # F5-DR (10.1.0.10)
+          - match_field: interface_name
+            match_value: "1.1"
+            tags: ["intf_role:external", "lb_side:vip-facing"]
+            speed_override: 10000000000
+          - match_field: interface_name
+            match_value: "1.2"
+            tags: ["intf_role:internal", "lb_side:server-facing"]
+            speed_override: 10000000000
+          # C9500-DR (10.1.0.20) + C9300-DC2 (10.1.0.21)
+          - match_field: interface_name
+            match_value: "HundredGigE1/0/1"
+            tags: ["intf_role:uplink", "connected_to:f5-dr", "speed_tier:100g"]
+            speed_override: 100000000000
+          - match_field: interface_name
+            match_value: "TenGigabitEthernet1/0/1"
+            tags: ["intf_role:distribution-downlink", "connected_to:c9300-dc2"]
+            speed_override: 10000000000
+
+  # ── SNMP Trap Receiver ─────────────────────────────────────────────────────
+  # iptables: -t nat -A PREROUTING -p udp --dport 162 -j REDIRECT --to-port 9162
+  snmp_traps:
+    enabled:  true
+    port:     9162
+    bind_host: "0.0.0.0"
+    community_strings:
+      - "dd-traps-dc2"
+    users:
+      - username:     cisco_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_CISCO_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_CISCO_PRIV_KEY }}"
+      - username:     paloalto_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_PA_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_PA_PRIV_KEY }}"
+      - username:     f5_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_F5_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_F5_PRIV_KEY }}"
+    stop_timeout: 5
+
+  # ── Flow Telemetry ─────────────────────────────────────────────────────────
+  # C9500-DR  → NetFlow v9 → port 2055
+  # PA-3220   → IPFIX      → port 4739
+  # F5-DR     → sFlow      → port 6343
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9
+        port:      2055
+        bind_host: "0.0.0.0"
+        workers:   4
+      - flow_type: ipfix
+        port:      4739
+        bind_host: "0.0.0.0"
+        workers:   2
+      - flow_type: sflow
+        port:      6343
+        bind_host: "0.0.0.0"
+        workers:   2
+    reverse_dns_enrichment_enabled: true
+    max_flows_per_second: 5000
+
+tags:
+  - "site:dc2"
+  - "region:us-east"
+  - "role:network-agent"
+  - "tier:dr"
+  - "env:production"
+
+# ─── Integrations via conf.d ──────────────────────────────────────────────────
+# conf.d/snmp.d/conf.yaml           → per-device instances (7 devices)
+# conf.d/cisco_meraki.d/conf.yaml   → Meraki Dashboard API (MR46 + MS250)
+# conf.d/syslog.d/conf.yaml         → syslog listener port 5014

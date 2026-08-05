@@ -1,0 +1,19 @@
+# =============================================================================
+# DC2 — Cisco Meraki Dashboard API Integration
+# conf.d/cisco_meraki.d/conf.yaml
+# Devices  : Meraki MR46 (10.1.0.40) · Meraki MS250 (10.1.0.41)
+# =============================================================================
+
+init_config: {}
+
+instances:
+  - api_key: "{{ DD_MERAKI_API_KEY }}"
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "role:datacenter"
+      - "tier:dr"
+      - "wifi_vendor:meraki"
+      - "managed_by:netops"
+      - "env:production"
+    min_collection_interval: 300

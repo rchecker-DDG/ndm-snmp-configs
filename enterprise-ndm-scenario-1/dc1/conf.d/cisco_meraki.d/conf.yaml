@@ -1,0 +1,45 @@
+# =============================================================================
+# DC1 — Cisco Meraki Dashboard API Integration
+# conf.d/cisco_meraki.d/conf.yaml
+#
+# Devices  : Meraki MR57 (10.0.0.40)  — Enterprise WiFi AP
+#            Meraki MS390 (10.0.0.41) — 48-port PoE switch
+# API Docs : https://developer.cisco.com/meraki/api-v1/
+# DD Docs  : https://docs.datadoghq.com/integrations/cisco_meraki/
+#
+# Metrics collected via Dashboard API:
+#   - Device status (online/offline) and uplink health
+#   - Switch port status, PoE draw per port
+#   - SSID client count, signal quality, association rate
+#   - Bandwidth utilization per SSID
+#   - RF channel utilization (5 GHz / 2.4 GHz)
+#   - WAN uplink latency and loss (Meraki MX uplink health)
+# =============================================================================
+
+init_config: {}
+
+instances:
+  - api_key: "{{ DD_MERAKI_API_KEY }}"    # Meraki Dashboard API key
+    # Filter to a specific org (recommended in multi-tenant environments)
+    # org_name: "Acme-Corp"               # or use org_id below
+    # org_id: "123456"
+
+    # Collect metrics for all networks or filter to specific network IDs
+    # networks:
+    #   - "L_123456789"                   # DC1 wired network
+    #   - "N_987654321"                   # DC1 wireless network
+
+    # Base URL (only needed if using a Meraki GovCloud or China endpoint)
+    # meraki_base_url: "https://api.meraki.com/api/v1"
+
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:datacenter"
+      - "wifi_vendor:meraki"
+      - "managed_by:netops"
+      - "env:production"
+
+    # Collection intervals (seconds) — Dashboard API has rate limits
+    # Default: 300s (5 min). Meraki enforces 5 req/sec / 10 calls/sec per org.
+    min_collection_interval: 300

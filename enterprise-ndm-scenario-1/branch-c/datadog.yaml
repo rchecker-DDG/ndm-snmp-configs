@@ -1,0 +1,130 @@
+# =============================================================================
+# Branch-C  ·  Datadog Agent: /etc/datadog-agent/datadog.yaml
+# Namespace : branch-c
+# Subnet    : 10.3.0.0/24   (no IP overlap — unique subnet)
+# Agent req : >= 7.54
+# Devices   : cEdge-BRC (.1) · C9300-BRC (.2) · EX2300-BRC (.3) · AP43-BRC (.10)
+# Features  : remote-config · SNMP v3 · topology · traps · NetFlow v9 · ping
+# Generated : 2026-08-05
+# =============================================================================
+
+api_key: <DD_API_KEY>
+site: datadoghq.com
+hostname: dd-agent-brc-01
+
+cmd_port: 5001
+
+remote_configuration:
+  enabled: true
+
+logs_enabled: true
+logs_config:
+  use_http: true
+
+process_config:
+  enabled: false
+apm_config:
+  enabled: false
+
+network_devices:
+
+  namespace: branch-c
+
+  autodiscovery:
+    use_deduplication: false
+    workers:            4
+    discovery_interval: 3600
+    loader:             core
+    collect_device_metadata: true
+    use_device_id_as_hostname: true
+
+    default_v3: &v3creds
+      snmp_version: 3
+      username:     dd_snmpv3
+      authProtocol: SHA256
+      authKey:      "{{ DD_SNMP_AUTH_KEY }}"
+      privProtocol: AES256
+      privKey:      "{{ DD_SNMP_PRIV_KEY }}"
+
+    configs:
+      - network_address: 10.3.0.0/24
+        <<: *v3creds
+        collect_topology: true
+        ping:
+          enabled:  true
+          count:    5
+          interval: 1000
+          timeout:  3000
+        tags:
+          - "site:branch-c"
+          - "region:us-west"
+          - "role:branch"
+          - "env:production"
+          - "managed_by:netops"
+        interface_configs:
+          # cEdge-BRC (10.3.0.1)
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/0"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:att"
+              - "wan_circuit:brc-att-dia-primary"
+              - "sdwan_tloc_color:biz-internet"
+              - "redundancy:primary"
+              - "geo_region:us-west"
+            speed_override: 100000000
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/1"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:comcast"
+              - "wan_circuit:brc-comcast-dia-secondary"
+              - "sdwan_tloc_color:biz-internet"
+              - "redundancy:secondary"
+            speed_override: 100000000
+          - match_field: interface_name
+            match_value: "GigabitEthernet1"
+            tags: ["intf_role:lan-uplink", "connected_to:c9300-brc"]
+          # EX2300-BRC (10.3.0.3)
+          - match_field: interface_name
+            match_value: "ge-0/0/0"
+            tags: ["intf_role:uplink", "connected_to:c9300-brc", "mist_managed:true"]
+            speed_override: 1000000000
+          - match_field: interface_name
+            match_value: "ge-0/0/1"
+            tags: ["intf_role:access", "connected_to:ap43-brc", "vlan:wireless", "poe:enabled"]
+
+  snmp_traps:
+    enabled:  true
+    port:     9162
+    bind_host: "0.0.0.0"
+    community_strings:
+      - "dd-traps-brc"
+    users:
+      - username:     cisco_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_CISCO_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_CISCO_PRIV_KEY }}"
+      - username:     juniper_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_JUNIPER_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_JUNIPER_PRIV_KEY }}"
+    stop_timeout: 5
+
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9
+        port:      2055
+        bind_host: "0.0.0.0"
+        workers:   2
+    reverse_dns_enrichment_enabled: true
+    max_flows_per_second: 2000
+
+tags:
+  - "site:branch-c"
+  - "region:us-west"
+  - "role:network-agent"
+  - "env:production"

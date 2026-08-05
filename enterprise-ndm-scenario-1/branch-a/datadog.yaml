@@ -1,0 +1,175 @@
+# =============================================================================
+# Branch-A  ·  Datadog Agent: /etc/datadog-agent/datadog.yaml
+# Namespace : branch-a
+# Subnet    : 192.168.10.0/24
+# Agent req : >= 7.54
+# Devices   : cEdge-BRA (.1) · C9300-BRA (.2) · EX2300-BRA (.3) ·
+#             AP43-BRA Mist (.10)
+#
+# ⚠  IMPORTANT — IP OVERLAP:
+#    Branch-B uses the same 192.168.10.0/24 subnet.
+#    namespace: branch-a ensures all device IDs are prefixed "branch-a:"
+#    and never collide with "branch-b:" devices in Datadog.
+#
+# Features  : remote-config · SNMP v3 · topology · traps (Mist) ·
+#             NetFlow v9 · syslog · ping
+# Generated : 2026-08-05
+# =============================================================================
+
+# ─── Core ─────────────────────────────────────────────────────────────────────
+api_key: <DD_API_KEY>
+site: datadoghq.com
+hostname: dd-agent-bra-01
+
+cmd_port: 5001
+
+# ─── Remote Configuration ─────────────────────────────────────────────────────
+remote_configuration:
+  enabled: true
+
+# ─── Logs (syslog from branch network devices) ───────────────────────────────
+logs_enabled: true
+logs_config:
+  use_http: true
+
+process_config:
+  enabled: false
+apm_config:
+  enabled: false
+
+# ─── Network Devices ──────────────────────────────────────────────────────────
+network_devices:
+
+  namespace: branch-a   # ← MUST be unique vs branch-b; both sweep 192.168.10.0/24
+
+  autodiscovery:
+    use_deduplication: false   # single agent at branch — no HA needed
+    workers:            4
+    discovery_interval: 3600
+    loader:             core
+    collect_device_metadata: true
+    use_device_id_as_hostname: true
+
+    default_v3: &v3creds
+      snmp_version: 3
+      username:     dd_snmpv3
+      authProtocol: SHA256
+      authKey:      "{{ DD_SNMP_AUTH_KEY }}"
+      privProtocol: AES256
+      privKey:      "{{ DD_SNMP_PRIV_KEY }}"
+
+    configs:
+
+      - network_address: 192.168.10.0/24
+        <<: *v3creds
+        collect_topology: true   # LLDP/CDP between cEdge ↔ C9300 ↔ EX2300
+        ping:
+          enabled:  true
+          count:    5
+          interval: 1000
+          timeout:  3000          # higher timeout for branch WAN latency
+        tags:
+          - "site:branch-a"
+          - "region:us-east"
+          - "role:branch"
+          - "env:production"
+          - "managed_by:netops"
+        interface_configs:
+          # cEdge-BRA (192.168.10.1) — SD-WAN branch router
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/0"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:att"
+              - "wan_circuit:bra-att-dia-primary"
+              - "sdwan_tloc_color:biz-internet"
+              - "redundancy:primary"
+            speed_override: 100000000      # 100 Mbps DIA branch link
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/1"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:comcast"
+              - "wan_circuit:bra-comcast-dia-secondary"
+              - "sdwan_tloc_color:biz-internet"
+              - "redundancy:secondary"
+            speed_override: 100000000
+          - match_field: interface_name
+            match_value: "GigabitEthernet1"
+            tags:
+              - "intf_role:lan-uplink"
+              - "connected_to:c9300-bra"
+          # C9300-BRA (192.168.10.2)
+          - match_field: interface_name
+            match_value: "GigabitEthernet1/0/49"
+            tags:
+              - "intf_role:uplink"
+              - "connected_to:cedge-bra"
+            speed_override: 1000000000
+          - match_field: interface_name
+            match_value: "GigabitEthernet1/0/50"
+            tags:
+              - "intf_role:uplink"
+              - "connected_to:ex2300-bra"
+            speed_override: 1000000000
+          # EX2300-BRA (192.168.10.3) — Juniper Mist switch
+          - match_field: interface_name
+            match_value: "ge-0/0/0"
+            tags:
+              - "intf_role:uplink"
+              - "connected_to:c9300-bra"
+              - "mist_managed:true"
+            speed_override: 1000000000
+          - match_field: interface_name
+            match_value: "ge-0/0/1"
+            tags:
+              - "intf_role:access"
+              - "connected_to:ap43-bra"
+              - "vlan:wireless"
+              - "poe:enabled"
+
+  # ── SNMP Trap Receiver ─────────────────────────────────────────────────────
+  # Trap senders at Branch-A: cEdge-BRA, EX2300-BRA, AP43-BRA
+  # iptables: -t nat -A PREROUTING -p udp --dport 162 -j REDIRECT --to-port 9162
+  snmp_traps:
+    enabled:  true
+    port:     9162
+    bind_host: "0.0.0.0"
+    community_strings:
+      - "dd-traps-bra"
+    users:
+      # Cisco cEdge
+      - username:     cisco_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_CISCO_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_CISCO_PRIV_KEY }}"
+      # Juniper Mist (EX2300 + AP43 trap sender)
+      - username:     juniper_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_JUNIPER_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_JUNIPER_PRIV_KEY }}"
+    stop_timeout: 5
+
+  # ── Flow Telemetry ─────────────────────────────────────────────────────────
+  # cEdge-BRA → NetFlow v9 → port 2055  (ip flow-export destination 192.168.10.50 2055)
+  # C9300-BRA → NetFlow v9 → port 2055  (same collector, differentiated by source IP)
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9
+        port:      2055
+        bind_host: "0.0.0.0"
+        workers:   2
+    reverse_dns_enrichment_enabled: true
+    max_flows_per_second: 2000
+
+tags:
+  - "site:branch-a"
+  - "region:us-east"
+  - "role:network-agent"
+  - "env:production"
+
+# conf.d/snmp.d/conf.yaml → per-device instances with interface + Mist tags
+# conf.d/syslog.d/conf.yaml → syslog listener (branch devices)

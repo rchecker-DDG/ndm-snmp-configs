@@ -1,0 +1,142 @@
+# =============================================================================
+# DC2 — Per-Device SNMP Instances  ·  conf.d/snmp.d/conf.yaml
+# Namespace : dc2  (set in datadog.yaml)
+# =============================================================================
+
+init_config:
+  loader: core
+  use_device_id_as_hostname: true
+
+x-v3: &v3
+  snmp_version: 3
+  username:     dd_snmpv3
+  authProtocol: SHA256
+  authKey:      "{{ DD_SNMP_AUTH_KEY }}"
+  privProtocol: AES256
+  privKey:      "{{ DD_SNMP_PRIV_KEY }}"
+
+instances:
+
+  # ── cEdge-DC2 ────────────────────────────────────────────────────────────
+  - ip_address: 10.1.0.1
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "role:router"
+      - "function:sdwan-cedge"
+      - "vendor:cisco"
+      - "model:csr1000v"
+      - "tier:dr"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "GigabitEthernet0/0/0"
+        tags: ["intf_role:wan", "wan_provider:att", "wan_circuit:dc2-att-mpls-primary", "sdwan_tloc_color:mpls", "redundancy:primary"]
+        speed_override: 1000000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet0/0/1"
+        tags: ["intf_role:wan", "wan_provider:comcast", "wan_circuit:dc2-comcast-dia-secondary", "sdwan_tloc_color:biz-internet", "redundancy:secondary"]
+        speed_override: 1000000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet1"
+        tags: ["intf_role:lan-uplink", "connected_to:c9500-dr"]
+
+  # ── PA-3220 (Palo Alto DR Firewall) ──────────────────────────────────────
+  - ip_address: 10.1.0.2
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "role:firewall"
+      - "vendor:paloalto"
+      - "model:pa-3220"
+      - "tier:dr"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "ethernet1/1"
+        tags: ["intf_role:untrust", "fw_zone:untrust", "connected_to:cedge-dc2"]
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "ethernet1/2"
+        tags: ["intf_role:trust", "fw_zone:trust", "connected_to:f5-dr"]
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "ethernet1/3"
+        tags: ["intf_role:mgmt", "fw_zone:mgmt"]
+
+  # ── F5 BIG-IP-DR ─────────────────────────────────────────────────────────
+  - ip_address: 10.1.0.10
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "role:load-balancer"
+      - "vendor:f5"
+      - "model:big-ip"
+      - "ha_state:active-dr"
+      - "tier:dr"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "1.1"
+        tags: ["intf_role:external", "lb_side:vip-facing"]
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "1.2"
+        tags: ["intf_role:internal", "lb_side:server-facing"]
+        speed_override: 10000000000
+
+  # ── C9500-DR (Core distribution) ─────────────────────────────────────────
+  - ip_address: 10.1.0.20
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "role:switch"
+      - "function:core-distribution"
+      - "vendor:cisco"
+      - "model:c9500"
+      - "tier:dr"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "HundredGigE1/0/1"
+        tags: ["intf_role:uplink", "connected_to:f5-dr", "speed_tier:100g"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "TenGigabitEthernet1/0/1"
+        tags: ["intf_role:distribution-downlink", "connected_to:c9300-dc2"]
+        speed_override: 10000000000
+
+  # ── C9300-DC2 (Access layer) ──────────────────────────────────────────────
+  - ip_address: 10.1.0.21
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc2"
+      - "region:us-east"
+      - "role:switch"
+      - "function:access-layer"
+      - "vendor:cisco"
+      - "model:c9300"
+      - "tier:dr"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "GigabitEthernet1/0/49"
+        tags: ["intf_role:uplink", "connected_to:c9500-dr"]
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet1/0/1"
+        tags: ["intf_role:access", "vlan:servers"]
+      - match_field: interface_name
+        match_value: "GigabitEthernet1/0/48"
+        tags: ["intf_role:access", "vlan:mgmt", "connected_to:meraki-mr46"]
+
+# NOTE: Meraki MR46 (10.1.0.40) and MS250 (10.1.0.41) → conf.d/cisco_meraki.d/conf.yaml

@@ -1,0 +1,302 @@
+# =============================================================================
+# DC1 — Primary Datacenter  ·  Datadog Agent: /etc/datadog-agent/datadog.yaml
+# Namespace  : dc1
+# Subnets    : 10.0.0.0/24 (mgmt/infra)  ·  10.0.2.0/24 (ACI fabric)
+# Agent req  : >= 7.67  (use_deduplication, netflow multi-listener)
+# Devices    : cEdge-DC1, PA-5220, F5-01, F5-02, C9500-Core,
+#              ACI APIC/Spine/Leaf, Meraki MR57/MS390
+# Features   : remote-config · SNMP v3 · topology · VPN · traps ·
+#              NetFlow v9 · IPFIX · sFlow · syslog · Agent HA
+# Generated  : 2026-08-05
+# =============================================================================
+
+# ─── Core ─────────────────────────────────────────────────────────────────────
+api_key: <DD_API_KEY>               # set via DD_API_KEY env var in production
+site: datadoghq.com
+hostname: dd-agent-dc1-01           # primary agent; run dd-agent-dc1-02 for HA standby
+
+# Agent local API (health checks, agent status, IPC — enabled by default)
+cmd_port:      5001
+agent_ipc_port: 5004
+
+# ─── Remote Configuration ─────────────────────────────────────────────────────
+# Allows Datadog backend to push config updates (profiles, fleet policies, etc.)
+remote_configuration:
+  enabled: true
+
+# ─── Process / APM / System-Probe (disable if not needed on network agent) ───
+process_config:
+  enabled: false
+apm_config:
+  enabled: false
+
+# ─── Log Collection ───────────────────────────────────────────────────────────
+# Enables the syslog listener defined in conf.d/syslog.d/conf.yaml.
+# Network devices (cEdge, PA-5220, F5, C9500, ACI) send syslog to 10.0.0.50.
+# Use iptables to redirect UDP/TCP 514 → 5014 (avoids running agent as root):
+#   iptables -t nat -A PREROUTING -p udp --dport 514 -j REDIRECT --to-port 5014
+#   iptables -t nat -A PREROUTING -p tcp --dport 514 -j REDIRECT --to-port 5014
+logs_enabled: true
+logs_config:
+  use_http: true
+  compression_level: 6
+
+# ─── Network Devices ──────────────────────────────────────────────────────────
+network_devices:
+
+  # Every device discovered by this agent gets this namespace prefix.
+  # dc1:10.0.0.1 vs dc2:10.0.0.1 → prevents IP collisions across sites.
+  namespace: dc1
+
+  # ── SNMP Autodiscovery (Agent ≥ 7.54) ──────────────────────────────────────
+  autodiscovery:
+
+    # HA: Two agents (dc1-01 and dc1-02) run the same config.
+    # use_deduplication prevents them from both polling the same device.
+    # Leader election is automatic; no external coordination needed.
+    # Requires Agent 7.67+. Both agents must share the same namespace.
+    use_deduplication: true
+
+    workers:            8       # parallel scan goroutines per agent
+    discovery_interval: 3600   # re-sweep subnets every 60 minutes
+    loader:             core   # Go SNMP engine (faster + lower CPU than python)
+    collect_device_metadata: true
+    use_device_id_as_hostname: true   # required to apply custom device tags
+
+    # ── Global SNMPv3 credentials (referenced by YAML anchor below) ─────────
+    default_v3: &v3creds
+      snmp_version: 3
+      username:     dd_snmpv3
+      authProtocol: SHA256
+      authKey:      "{{ DD_SNMP_AUTH_KEY }}"   # inject from env / secrets mgr
+      privProtocol: AES256
+      privKey:      "{{ DD_SNMP_PRIV_KEY }}"
+      context:      ""
+
+    configs:
+
+      # ── Subnet 1: DC1 main infra ─────────────────────────────────────────
+      #    10.0.0.0/24 → cEdge-DC1 (.1) · PA-5220 (.2) · F5-01 (.10) ·
+      #                   F5-02 (.11) · C9500-Core (.20) · ACI APIC (.30) ·
+      #                   Meraki MR57 (.40) · Meraki MS390 (.41)
+      - network_address: 10.0.0.0/24
+        <<: *v3creds
+        collect_topology: true    # LLDP/CDP → NDM Topology Map
+        collect_vpn:      true    # SD-WAN OMP/tunnel metrics from cEdge
+        ping:
+          enabled:  true
+          count:    5
+          interval: 1000          # ms between ICMP probes
+          timeout:  2000
+        tags:
+          - "site:dc1"
+          - "region:us-east"
+          - "role:datacenter"
+          - "tier:primary"
+          - "env:production"
+          - "managed_by:netops"
+        interface_configs:
+          # ── cEdge-DC1 (10.0.0.1) — SD-WAN router ───────────────────────
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/0"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:att"
+              - "wan_circuit:dc1-att-mpls-primary"
+              - "sdwan_tloc_color:mpls"
+              - "geo_region:us-east"
+              - "redundancy:primary"
+            speed_override: 1000000000    # 1 Gbps AT&T MPLS
+          - match_field: interface_name
+            match_value: "GigabitEthernet0/0/1"
+            tags:
+              - "intf_role:wan"
+              - "wan_provider:comcast"
+              - "wan_circuit:dc1-comcast-dia-secondary"
+              - "sdwan_tloc_color:biz-internet"
+              - "geo_region:us-east"
+              - "redundancy:secondary"
+            speed_override: 1000000000    # 1 Gbps Comcast DIA
+          - match_field: interface_name
+            match_value: "GigabitEthernet1"
+            tags:
+              - "intf_role:lan-uplink"
+              - "connected_to:c9500-core"
+          - match_field: interface_name
+            match_value: "Loopback0"
+            tags:
+              - "intf_role:loopback"
+              - "function:sdwan-transport"
+          # ── PA-5220 (10.0.0.2) — Palo Alto firewall ─────────────────────
+          - match_field: interface_name
+            match_value: "ethernet1/1"
+            tags:
+              - "intf_role:untrust"
+              - "fw_zone:untrust"
+              - "connected_to:cedge-dc1"
+          - match_field: interface_name
+            match_value: "ethernet1/2"
+            tags:
+              - "intf_role:trust"
+              - "fw_zone:trust"
+              - "connected_to:f5-bigip-01"
+          - match_field: interface_name
+            match_value: "ethernet1/3"
+            tags:
+              - "intf_role:dmz"
+              - "fw_zone:dmz"
+          - match_field: interface_name
+            match_value: "ethernet1/4"
+            tags:
+              - "intf_role:mgmt"
+              - "fw_zone:mgmt"
+          # ── F5 BIG-IP-01 (10.0.0.10) — Active LB ────────────────────────
+          - match_field: interface_name
+            match_value: "1.1"
+            tags:
+              - "intf_role:external"
+              - "connected_to:pa-5220-trust"
+              - "lb_side:vip-facing"
+          - match_field: interface_name
+            match_value: "1.2"
+            tags:
+              - "intf_role:internal"
+              - "connected_to:c9500-core"
+              - "lb_side:server-facing"
+          - match_field: interface_name
+            match_value: "mgmt"
+            tags:
+              - "intf_role:mgmt"
+          # ── C9500-Core (10.0.0.20) — Core distribution switch ────────────
+          - match_field: interface_name
+            match_value: "HundredGigE1/0/1"
+            tags:
+              - "intf_role:uplink"
+              - "connected_to:f5-bigip-01"
+              - "speed_tier:100g"
+          - match_field: interface_name
+            match_value: "HundredGigE1/0/2"
+            tags:
+              - "intf_role:uplink"
+              - "connected_to:f5-bigip-02"
+              - "speed_tier:100g"
+          - match_field: interface_name
+            match_value: "HundredGigE1/0/48"
+            tags:
+              - "intf_role:aci-uplink"
+              - "connected_to:aci-leaf-101"
+              - "speed_tier:100g"
+
+      # ── Subnet 2: ACI Fabric ──────────────────────────────────────────────
+      #    10.0.2.0/24 → Spine-1 (.1) · Spine-2 (.2) ·
+      #                   Leaf-101 (.101) · Leaf-102 (.102)
+      #    Note: APIC (10.0.0.30) is on mgmt subnet above + snmp.d/conf.yaml
+      - network_address: 10.0.2.0/24
+        <<: *v3creds
+        collect_topology: true
+        ping:
+          enabled:  true
+          count:    3
+          interval: 2000
+          timeout:  2000
+        tags:
+          - "site:dc1"
+          - "region:us-east"
+          - "role:aci-fabric"
+          - "vendor:cisco"
+          - "env:production"
+        interface_configs:
+          - match_field: interface_name
+            match_value: "eth1/1"
+            tags:
+              - "intf_role:fabric-uplink"
+              - "aci_role:leaf-to-spine"
+            speed_override: 100000000000   # 100G fabric links
+          - match_field: interface_name
+            match_value: "eth1/49"
+            tags:
+              - "intf_role:fabric-peer"
+              - "aci_role:spine-to-spine"
+            speed_override: 100000000000
+          - match_field: interface_name
+            match_value: "eth1/50"
+            tags:
+              - "intf_role:fabric-peer"
+              - "aci_role:spine-to-spine"
+            speed_override: 100000000000
+          - match_field: interface_name
+            match_value: "eth1/3"
+            tags:
+              - "intf_role:leaf-access"
+              - "aci_role:leaf-to-server"
+
+  # ── SNMP Trap Receiver ────────────────────────────────────────────────────
+  # Trap senders: cEdge-DC1, PA-5220, F5-01, F5-02, C9500-Core, ACI APIC
+  # Device trap config:  snmp-server host 10.0.0.50 traps version 3 priv <user>
+  # Port redirect:  iptables -t nat -A PREROUTING -p udp --dport 162 -j REDIRECT --to-port 9162
+  snmp_traps:
+    enabled:  true
+    port:     9162
+    bind_host: "0.0.0.0"
+    # v2c: used by F5 BIG-IP (supports v3 traps in TMOS 15+; use community for older)
+    community_strings:
+      - "dd-traps-dc1"
+    # v3 authPriv trap users — one per vendor to enable per-vendor key rotation
+    users:
+      - username:     cisco_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_CISCO_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_CISCO_PRIV_KEY }}"
+      - username:     paloalto_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_PA_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_PA_PRIV_KEY }}"
+      - username:     f5_trap_v3
+        authProtocol: SHA256
+        authKey:      "{{ DD_TRAP_F5_AUTH_KEY }}"
+        privProtocol: AES256
+        privKey:      "{{ DD_TRAP_F5_PRIV_KEY }}"
+    stop_timeout: 5
+
+  # ── Flow Telemetry Receivers (NetFlow v9 / IPFIX / sFlow) ─────────────────
+  # Exporters:
+  #   C9500-Core  → NetFlow v9 → port 2055  (ip flow-export destination 10.0.0.50 2055)
+  #   ACI Spine   → NetFlow v9 → port 2056  (fabric flow-export per EPG)
+  #   PA-5220     → IPFIX      → port 4739  (zone-based flow export)
+  #   F5-01/02    → sFlow      → port 6343  (sFlow v5, 1:4096 sampling)
+  netflow:
+    enabled: true
+    listeners:
+      - flow_type: netflow9       # C9500-Core
+        port:      2055
+        bind_host: "0.0.0.0"
+        workers:   4
+      - flow_type: netflow9       # ACI Spine-1 + Spine-2
+        port:      2056
+        bind_host: "0.0.0.0"
+        workers:   2
+      - flow_type: ipfix          # PA-5220
+        port:      4739
+        bind_host: "0.0.0.0"
+        workers:   4
+      - flow_type: sflow          # F5 BIG-IP-01 + BIG-IP-02
+        port:      6343
+        bind_host: "0.0.0.0"
+        workers:   2
+    reverse_dns_enrichment_enabled: true   # resolve IPs in flow records
+    max_flows_per_second: 10000            # rate cap to protect agent memory
+
+# ─── Tags (host-level, applied to agent metrics / infra host) ────────────────
+tags:
+  - "site:dc1"
+  - "region:us-east"
+  - "role:network-agent"
+  - "tier:primary"
+  - "env:production"
+
+# ─── Integrations activated via conf.d ───────────────────────────────────────
+# conf.d/snmp.d/conf.yaml           → per-device instances (interface tags, custom OIDs)
+# conf.d/cisco_meraki.d/conf.yaml   → Meraki Dashboard API (MR57 + MS390)
+# conf.d/syslog.d/conf.yaml         → UDP/TCP syslog listener port 5014

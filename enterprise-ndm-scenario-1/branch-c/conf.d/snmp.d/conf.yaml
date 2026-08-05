@@ -1,0 +1,107 @@
+# =============================================================================
+# Branch-C — Per-Device SNMP Instances  ·  conf.d/snmp.d/conf.yaml
+# Namespace : branch-c  ·  Subnet: 10.3.0.0/24  (unique, no overlap)
+# =============================================================================
+
+init_config:
+  loader: core
+  use_device_id_as_hostname: true
+
+x-v3: &v3
+  snmp_version: 3
+  username:     dd_snmpv3
+  authProtocol: SHA256
+  authKey:      "{{ DD_SNMP_AUTH_KEY }}"
+  privProtocol: AES256
+  privKey:      "{{ DD_SNMP_PRIV_KEY }}"
+
+instances:
+
+  # ── cEdge-BRC ────────────────────────────────────────────────────────────
+  - ip_address: 10.3.0.1
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:branch-c"
+      - "region:us-west"
+      - "role:router"
+      - "function:sdwan-cedge"
+      - "vendor:cisco"
+      - "model:isr-4331"
+      - "env:production"
+      - "geo_city:los-angeles"
+      - "geo_country:us"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "GigabitEthernet0/0/0"
+        tags: ["intf_role:wan", "wan_provider:att", "wan_circuit:brc-att-dia-primary", "sdwan_tloc_color:biz-internet", "redundancy:primary", "geo_region:us-west"]
+        speed_override: 100000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet0/0/1"
+        tags: ["intf_role:wan", "wan_provider:comcast", "wan_circuit:brc-comcast-dia-secondary", "sdwan_tloc_color:biz-internet", "redundancy:secondary"]
+        speed_override: 100000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet1"
+        tags: ["intf_role:lan-uplink", "connected_to:c9300-brc"]
+
+  # ── C9300-BRC ────────────────────────────────────────────────────────────
+  - ip_address: 10.3.0.2
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:branch-c"
+      - "region:us-west"
+      - "role:switch"
+      - "function:branch-access"
+      - "vendor:cisco"
+      - "model:c9300"
+      - "env:production"
+      - "geo_city:los-angeles"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "GigabitEthernet1/0/49"
+        tags: ["intf_role:uplink", "connected_to:cedge-brc"]
+        speed_override: 1000000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet1/0/50"
+        tags: ["intf_role:uplink", "connected_to:ex2300-brc"]
+        speed_override: 1000000000
+
+  # ── EX2300-BRC (Juniper Mist) ─────────────────────────────────────────────
+  - ip_address: 10.3.0.3
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:branch-c"
+      - "region:us-west"
+      - "role:switch"
+      - "function:mist-managed-switch"
+      - "vendor:juniper"
+      - "model:ex2300"
+      - "mist_managed:true"
+      - "env:production"
+      - "geo_city:los-angeles"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "ge-0/0/0"
+        tags: ["intf_role:uplink", "connected_to:c9300-brc"]
+        speed_override: 1000000000
+      - match_field: interface_name
+        match_value: "ge-0/0/1"
+        tags: ["intf_role:access", "connected_to:ap43-brc", "vlan:wireless", "poe:enabled"]
+
+  # ── AP43-BRC (Juniper Mist AP) ────────────────────────────────────────────
+  - ip_address: 10.3.0.10
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:branch-c"
+      - "region:us-west"
+      - "role:access-point"
+      - "function:mist-ap"
+      - "vendor:juniper"
+      - "model:ap43"
+      - "mist_managed:true"
+      - "env:production"
+      - "geo_city:los-angeles"
+      - "ssid_group:branch-wireless"

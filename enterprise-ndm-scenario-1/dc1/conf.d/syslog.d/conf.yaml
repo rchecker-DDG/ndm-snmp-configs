@@ -1,0 +1,39 @@
+# =============================================================================
+# DC1 — Network Device Syslog Listener
+# conf.d/syslog.d/conf.yaml
+#
+# The agent listens on port 5014 (UDP + TCP).
+# iptables redirects OS-level port 514 → 5014 so the agent runs as non-root:
+#   iptables -t nat -A PREROUTING -p udp --dport 514 -j REDIRECT --to-port 5014
+#   iptables -t nat -A PREROUTING -p tcp --dport 514 -j REDIRECT --to-port 5014
+#
+# Senders (configure each device to send to 10.0.0.50):
+#   cEdge-DC1 : logging host 10.0.0.50 transport udp port 514
+#   PA-5220   : Syslog Server: 10.0.0.50:514 UDP, facility: local0, severity: informational
+#   F5-01/02  : /usr/sbin/syslog-ng → remote 10.0.0.50 port 514
+#   C9500-Core: logging host 10.0.0.50 transport udp port 514
+#   ACI APIC  : External Syslog Server: 10.0.0.50, port 514
+# =============================================================================
+
+logs:
+  # UDP syslog (most network devices default to UDP)
+  - type: udp
+    port: 5014
+    service: network-syslog
+    source: syslog
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "log_source:network-device"
+      - "env:production"
+
+  # TCP syslog (PA-5220 and F5 prefer reliable TCP delivery)
+  - type: tcp
+    port: 5014
+    service: network-syslog
+    source: syslog
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "log_source:network-device"
+      - "env:production"

@@ -1,0 +1,325 @@
+# =============================================================================
+# DC1 — Per-Device SNMP Instances  ·  conf.d/snmp.d/conf.yaml
+# Namespace : dc1  (set in datadog.yaml)
+# Purpose   : Individual device entries for profile overrides, custom OIDs,
+#             and fine-grained interface tagging beyond autodiscovery defaults.
+# =============================================================================
+
+init_config:
+  loader: core
+  use_device_id_as_hostname: true
+
+# ── Shared SNMPv3 anchor ─────────────────────────────────────────────────────
+x-v3: &v3
+  snmp_version: 3
+  username:     dd_snmpv3
+  authProtocol: SHA256
+  authKey:      "{{ DD_SNMP_AUTH_KEY }}"
+  privProtocol: AES256
+  privKey:      "{{ DD_SNMP_PRIV_KEY }}"
+
+instances:
+
+  # ── cEdge-DC1 (Cisco CSR1000v — SD-WAN cEdge) ───────────────────────────
+  - ip_address: 10.0.0.1
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:router"
+      - "function:sdwan-cedge"
+      - "vendor:cisco"
+      - "model:csr1000v"
+      - "env:production"
+      - "managed_by:netops"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "GigabitEthernet0/0/0"
+        tags:
+          - "intf_role:wan"
+          - "wan_provider:att"
+          - "wan_circuit:dc1-att-mpls-primary"
+          - "sdwan_tloc_color:mpls"
+          - "redundancy:primary"
+        speed_override: 1000000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet0/0/1"
+        tags:
+          - "intf_role:wan"
+          - "wan_provider:comcast"
+          - "wan_circuit:dc1-comcast-dia-secondary"
+          - "sdwan_tloc_color:biz-internet"
+          - "redundancy:secondary"
+        speed_override: 1000000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet1"
+        tags:
+          - "intf_role:lan-uplink"
+          - "connected_to:c9500-core-dc1"
+      - match_field: interface_name
+        match_value: "Tunnel0"
+        tags:
+          - "intf_role:sdwan-tunnel"
+          - "sdwan_color:mpls"
+      - match_field: interface_name
+        match_value: "Tunnel1"
+        tags:
+          - "intf_role:sdwan-tunnel"
+          - "sdwan_color:biz-internet"
+
+  # ── PA-5220 (Palo Alto NGFW) ─────────────────────────────────────────────
+  - ip_address: 10.0.0.2
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:firewall"
+      - "vendor:paloalto"
+      - "model:pa-5220"
+      - "env:production"
+      - "ha_state:active"           # update to passive for secondary PA if HA pair added
+    interface_configs:
+      - match_field: interface_name
+        match_value: "ethernet1/1"
+        tags:
+          - "intf_role:untrust"
+          - "fw_zone:untrust"
+          - "connected_to:cedge-dc1"
+        speed_override: 10000000000   # 10G
+      - match_field: interface_name
+        match_value: "ethernet1/2"
+        tags:
+          - "intf_role:trust"
+          - "fw_zone:trust"
+          - "connected_to:f5-bigip-01"
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "ethernet1/3"
+        tags:
+          - "intf_role:dmz"
+          - "fw_zone:dmz"
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "ethernet1/4"
+        tags:
+          - "intf_role:mgmt"
+          - "fw_zone:mgmt"
+      - match_field: interface_name
+        match_value: "hsci"
+        tags:
+          - "intf_role:ha-sync"
+          - "function:paloalto-ha-sync"
+
+  # ── F5 BIG-IP-01 (Active LB) ─────────────────────────────────────────────
+  - ip_address: 10.0.0.10
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:load-balancer"
+      - "vendor:f5"
+      - "model:big-ip"
+      - "ha_state:active"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "1.1"
+        tags:
+          - "intf_role:external"
+          - "connected_to:pa-5220-trust"
+          - "lb_side:vip-facing"
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "1.2"
+        tags:
+          - "intf_role:internal"
+          - "connected_to:c9500-core"
+          - "lb_side:server-facing"
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "mgmt"
+        tags:
+          - "intf_role:mgmt"
+
+  # ── F5 BIG-IP-02 (Standby LB) ────────────────────────────────────────────
+  - ip_address: 10.0.0.11
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:load-balancer"
+      - "vendor:f5"
+      - "model:big-ip"
+      - "ha_state:standby"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "1.1"
+        tags: ["intf_role:external", "lb_side:vip-facing"]
+        speed_override: 10000000000
+      - match_field: interface_name
+        match_value: "1.2"
+        tags: ["intf_role:internal", "lb_side:server-facing"]
+        speed_override: 10000000000
+
+  # ── C9500-Core (Cisco Catalyst 9500 — Core/Distribution) ─────────────────
+  - ip_address: 10.0.0.20
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:switch"
+      - "function:core-distribution"
+      - "vendor:cisco"
+      - "model:c9500"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "HundredGigE1/0/1"
+        tags: ["intf_role:uplink", "connected_to:f5-bigip-01", "speed_tier:100g"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "HundredGigE1/0/2"
+        tags: ["intf_role:uplink", "connected_to:f5-bigip-02", "speed_tier:100g"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "HundredGigE1/0/48"
+        tags: ["intf_role:aci-uplink", "connected_to:aci-leaf-101", "speed_tier:100g"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "GigabitEthernet1/0/1"
+        tags: ["intf_role:access", "vlan:mgmt"]
+      - match_field: interface_name
+        match_value: "GigabitEthernet1/0/2"
+        tags: ["intf_role:access", "vlan:servers"]
+
+  # ── ACI APIC (Cisco Application Policy Infrastructure Controller) ─────────
+  - ip_address: 10.0.0.30
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:controller"
+      - "function:aci-apic"
+      - "vendor:cisco"
+      - "model:apic"
+      - "env:production"
+    # APIC exposes limited SNMP; most metrics come from ACI REST API integration
+
+  # ── ACI Spine-1 ──────────────────────────────────────────────────────────
+  - ip_address: 10.0.2.1
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:switch"
+      - "function:aci-spine"
+      - "vendor:cisco"
+      - "aci_node:spine-1"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "eth1/1"
+        tags: ["intf_role:fabric-downlink", "aci_role:spine-to-leaf", "connected_to:leaf-101"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/2"
+        tags: ["intf_role:fabric-downlink", "aci_role:spine-to-leaf", "connected_to:leaf-102"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/49"
+        tags: ["intf_role:fabric-peer", "aci_role:spine-to-spine", "connected_to:spine-2"]
+        speed_override: 100000000000
+
+  # ── ACI Spine-2 ──────────────────────────────────────────────────────────
+  - ip_address: 10.0.2.2
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:switch"
+      - "function:aci-spine"
+      - "vendor:cisco"
+      - "aci_node:spine-2"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "eth1/1"
+        tags: ["intf_role:fabric-downlink", "aci_role:spine-to-leaf", "connected_to:leaf-101"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/2"
+        tags: ["intf_role:fabric-downlink", "aci_role:spine-to-leaf", "connected_to:leaf-102"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/49"
+        tags: ["intf_role:fabric-peer", "aci_role:spine-to-spine", "connected_to:spine-1"]
+        speed_override: 100000000000
+
+  # ── ACI Leaf-101 ─────────────────────────────────────────────────────────
+  - ip_address: 10.0.2.101
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:switch"
+      - "function:aci-leaf"
+      - "vendor:cisco"
+      - "aci_node:leaf-101"
+      - "aci_pod:pod-1"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "eth1/49"
+        tags: ["intf_role:fabric-uplink", "aci_role:leaf-to-spine", "connected_to:spine-1"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/50"
+        tags: ["intf_role:fabric-uplink", "aci_role:leaf-to-spine", "connected_to:spine-2"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/1"
+        tags: ["intf_role:access", "epg:web-tier", "vlan:100"]
+      - match_field: interface_name
+        match_value: "eth1/2"
+        tags: ["intf_role:access", "epg:app-tier", "vlan:200"]
+
+  # ── ACI Leaf-102 ─────────────────────────────────────────────────────────
+  - ip_address: 10.0.2.102
+    <<: *v3
+    use_device_id_as_hostname: true
+    tags:
+      - "site:dc1"
+      - "region:us-east"
+      - "role:switch"
+      - "function:aci-leaf"
+      - "vendor:cisco"
+      - "aci_node:leaf-102"
+      - "aci_pod:pod-1"
+      - "env:production"
+    interface_configs:
+      - match_field: interface_name
+        match_value: "eth1/49"
+        tags: ["intf_role:fabric-uplink", "connected_to:spine-1"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/50"
+        tags: ["intf_role:fabric-uplink", "connected_to:spine-2"]
+        speed_override: 100000000000
+      - match_field: interface_name
+        match_value: "eth1/1"
+        tags: ["intf_role:access", "epg:db-tier", "vlan:300"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE: Meraki MR57 (10.0.0.40) and MS390 (10.0.0.41) are monitored via
+# Meraki Dashboard API — see conf.d/cisco_meraki.d/conf.yaml.
+# Meraki SNMP is limited to basic IF-MIB; Dashboard API provides full telemetry.

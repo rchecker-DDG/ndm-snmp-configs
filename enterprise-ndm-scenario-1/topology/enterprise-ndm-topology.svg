@@ -1,0 +1,194 @@
+<svg viewBox="0 0 1600 930" xmlns="http://www.w3.org/2000/svg" role="img" font-family="sans-serif" font-size="11">
+<title>Enterprise NDM Topology — Dual-ISP SD-WAN, Meraki at DCs, Mist at Branches</title>
+<defs>
+  <marker id="ab" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#185FA5"/></marker>
+  <marker id="aa" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#854F0B"/></marker>
+  <marker id="ap" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0,7 3.5,0 7" fill="#534AB7"/></marker>
+</defs>
+<!-- AWS -->
+<rect x="570" y="8" width="460" height="66" rx="10" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5"/>
+<text x="800" y="28" text-anchor="middle" font-size="12" font-weight="500" fill="#3C3489">AWS Cloud (us-east-1)</text>
+<text x="800" y="44" text-anchor="middle" fill="#534AB7">VPC 172.16.0.0/16  ·  Transit Gateway</text>
+<text x="800" y="60" text-anchor="middle" font-size="10" fill="#534AB7">SD-WAN Cloud OnRamp via DC1 cEdge  ·  BGP over OMP</text>
+<!-- AWS→DC1 -->
+<line x1="640" y1="74" x2="200" y2="148" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#ap)"/>
+<text x="388" y="112" fill="#534AB7" font-size="9" text-anchor="middle">Cloud OnRamp</text>
+<!-- SP NETWORK -->
+<rect x="376" y="88" width="848" height="302" rx="16" fill="#FAEEDA" stroke="#BA7517" stroke-width="2" stroke-dasharray="9 4"/>
+<text x="800" y="108" text-anchor="middle" font-size="13" font-weight="500" fill="#633806">Service Provider WAN Network</text>
+<text x="800" y="123" text-anchor="middle" font-size="10" fill="#854F0B">Dual-carrier active/active  ·  Cisco SD-WAN IPsec TLOC tunnels over both ISPs</text>
+<!-- ISP-1 -->
+<rect x="392" y="132" width="360" height="120" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.2"/>
+<text x="572" y="150" text-anchor="middle" font-size="11" font-weight="500" fill="#0C447C">ISP-1 / AT&amp;T (Primary)</text>
+<text x="572" y="165" text-anchor="middle" font-size="10" fill="#185FA5">MPLS + DIA  ·  TLOC: mpls, biz-internet</text>
+<text x="572" y="179" text-anchor="middle" font-size="10" fill="#185FA5">DC1 WAN1: 203.0.113.1/30  ·  DC2 WAN1: 203.0.113.5/30</text>
+<text x="572" y="193" text-anchor="middle" font-size="10" fill="#185FA5">Branches WAN1: 100.64.x.1/30</text>
+<text x="572" y="207" text-anchor="middle" font-size="10" fill="#185FA5">BGP toward vBond  ·  BFD: 1s/3s</text>
+<!-- ISP-2 -->
+<rect x="848" y="132" width="360" height="120" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="1.2"/>
+<text x="1028" y="150" text-anchor="middle" font-size="11" font-weight="500" fill="#712B13">ISP-2 / Comcast (Secondary)</text>
+<text x="1028" y="165" text-anchor="middle" font-size="10" fill="#993C1D">DIA broadband  ·  TLOC: biz-internet</text>
+<text x="1028" y="179" text-anchor="middle" font-size="10" fill="#993C1D">DC1 WAN2: 209.51.188.1/30  ·  DC2 WAN2: 209.51.188.5/30</text>
+<text x="1028" y="193" text-anchor="middle" font-size="10" fill="#993C1D">Branches WAN2: 100.64.1x.1/30</text>
+<text x="1028" y="207" text-anchor="middle" font-size="10" fill="#993C1D">App-aware routing: latency/loss SLAs</text>
+<!-- SD-WAN CP -->
+<rect x="528" y="270" width="544" height="106" rx="8" fill="#FAC775" stroke="#BA7517" stroke-width="1.2"/>
+<text x="800" y="289" text-anchor="middle" font-size="11" font-weight="500" fill="#412402">Cisco SD-WAN Control Plane (SaaS)</text>
+<text x="800" y="304" text-anchor="middle" font-size="10" fill="#633806">vManage · vSmart · vBond  ·  IPsec over ISP-1+ISP-2  ·  ECMP + BFD</text>
+<text x="800" y="318" text-anchor="middle" font-size="10" fill="#633806">OMP routes: dc1 / dc2 / branch-a / branch-b / branch-c</text>
+<text x="800" y="332" text-anchor="middle" font-size="10" fill="#633806">Datadog NDM: SNMP v3 per cEdge  ·  collect_vpn:true  ·  NetFlow v9→2055</text>
+<text x="800" y="346" text-anchor="middle" font-size="10" fill="#633806">namespace per site  ·  use_deduplication:true (DC HA)  ·  remote_config:true</text>
+<!-- DC1 -->
+<rect x="10" y="148" width="354" height="436" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="2"/>
+<text x="187" y="169" text-anchor="middle" font-size="12" font-weight="500" fill="#0C447C">DC1 — Primary Datacenter</text>
+<text x="187" y="184" text-anchor="middle" font-size="9" fill="#185FA5">mgmt 10.0.0.0/24  ·  ACI 10.0.2.0/24  ·  namespace: dc1</text>
+<rect x="18" y="192" width="338" height="40" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="28" y="208" font-weight="500" fill="#0C447C">cEdge-DC1 (Cisco CSR1000v)</text>
+<text x="28" y="222" fill="#185FA5">LAN 10.0.0.1  WAN1 203.0.113.1  WAN2 209.51.188.1</text>
+<rect x="18" y="236" width="338" height="34" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="28" y="251" font-weight="500" fill="#0C447C">PA-5220 (Palo Alto)</text>
+<text x="28" y="264" fill="#185FA5">10.0.0.2  ·  SNMP v3  ·  IPFIX → 4739</text>
+<rect x="18" y="274" width="163" height="34" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="28" y="289" font-weight="500" fill="#0C447C">F5 BIG-IP-01 Active</text>
+<text x="28" y="303" fill="#185FA5">10.0.0.10  ·  sFlow→6343</text>
+<rect x="185" y="274" width="171" height="34" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="195" y="289" font-weight="500" fill="#0C447C">F5 BIG-IP-02 Standby</text>
+<text x="195" y="303" fill="#185FA5">10.0.0.11  ·  sFlow→6343</text>
+<rect x="18" y="312" width="338" height="34" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="28" y="327" font-weight="500" fill="#0C447C">C9500-Core (Cisco Catalyst)</text>
+<text x="28" y="341" fill="#185FA5">10.0.0.20  ·  SNMP v3  ·  NetFlow v9 → 2055</text>
+<rect x="18" y="350" width="338" height="48" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="28" y="365" font-weight="500" fill="#0C447C">Cisco ACI Fabric</text>
+<text x="28" y="379" fill="#185FA5">APIC 10.0.0.30  Spine .1/.2  Leaf .101/.102</text>
+<text x="28" y="392" fill="#185FA5">NetFlow v9 → 2056</text>
+<rect x="18" y="402" width="338" height="34" rx="5" fill="#C0DD97" stroke="#3B6D11" stroke-width="1"/>
+<text x="28" y="417" font-weight="500" fill="#27500A">Meraki MR57+MS390 (WiFi+Switch)</text>
+<text x="28" y="431" fill="#3B6D11">10.0.0.40/.41  ·  Dashboard API</text>
+<rect x="18" y="440" width="338" height="36" rx="5" fill="#0C447C" stroke="#0C447C"/>
+<text x="187" y="455" text-anchor="middle" font-weight="500" fill="#E6F1FB">Datadog Agent DC1  10.0.0.50</text>
+<text x="187" y="469" text-anchor="middle" fill="#85B7EB">ns:dc1  ·  HA  ·  traps/NetFlow/IPFIX/sFlow</text>
+<!-- DC1 WAN lines -->
+<line x1="362" y1="213" x2="392" y2="174" stroke="#185FA5" stroke-width="2" marker-end="url(#ab)"/>
+<text x="374" y="200" font-size="9" fill="#185FA5">WAN1</text>
+<line x1="362" y1="227" x2="848" y2="190" stroke="#854F0B" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#aa)"/>
+<text x="590" y="220" font-size="9" fill="#854F0B" text-anchor="middle">WAN2</text>
+<!-- DC2 -->
+<rect x="1236" y="148" width="354" height="388" rx="10" fill="#E6F1FB" stroke="#185FA5" stroke-width="2"/>
+<text x="1413" y="169" text-anchor="middle" font-size="12" font-weight="500" fill="#0C447C">DC2 — DR Datacenter</text>
+<text x="1413" y="184" text-anchor="middle" font-size="9" fill="#185FA5">mgmt 10.1.0.0/24  ·  namespace: dc2</text>
+<rect x="1244" y="192" width="338" height="40" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="1254" y="208" font-weight="500" fill="#0C447C">cEdge-DC2 (Cisco CSR1000v)</text>
+<text x="1254" y="222" fill="#185FA5">LAN 10.1.0.1  WAN1 203.0.113.5  WAN2 209.51.188.5</text>
+<rect x="1244" y="236" width="338" height="34" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="1254" y="251" font-weight="500" fill="#0C447C">PA-3220 (Palo Alto DR)</text>
+<text x="1254" y="264" fill="#185FA5">10.1.0.2  ·  SNMP v3  ·  IPFIX → 4739</text>
+<rect x="1244" y="274" width="163" height="34" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="1254" y="289" font-weight="500" fill="#0C447C">F5 BIG-IP-DR</text>
+<text x="1254" y="303" fill="#185FA5">10.1.0.10  ·  sFlow→6343</text>
+<rect x="1411" y="274" width="171" height="34" rx="5" fill="#B5D4F4" stroke="#185FA5" stroke-width="1"/>
+<text x="1421" y="289" font-weight="500" fill="#0C447C">C9500-DR+C9300</text>
+<text x="1421" y="303" fill="#185FA5">10.1.0.20/.21  NetFlow→2055</text>
+<rect x="1244" y="312" width="338" height="34" rx="5" fill="#C0DD97" stroke="#3B6D11" stroke-width="1"/>
+<text x="1254" y="327" font-weight="500" fill="#27500A">Meraki MR46+MS250 (WiFi+Switch)</text>
+<text x="1254" y="341" fill="#3B6D11">10.1.0.40/.41  ·  Dashboard API</text>
+<rect x="1244" y="350" width="338" height="36" rx="5" fill="#0C447C" stroke="#0C447C"/>
+<text x="1413" y="365" text-anchor="middle" font-weight="500" fill="#E6F1FB">Datadog Agent DC2  10.1.0.50</text>
+<text x="1413" y="379" text-anchor="middle" fill="#85B7EB">ns:dc2  ·  HA  ·  traps/NetFlow/IPFIX/sFlow</text>
+<!-- DC2 WAN lines -->
+<line x1="1236" y1="213" x2="1208" y2="174" stroke="#185FA5" stroke-width="2" marker-end="url(#ab)"/>
+<text x="1225" y="199" font-size="9" fill="#185FA5" text-anchor="end">WAN1</text>
+<line x1="1236" y1="227" x2="1208" y2="227" stroke="#854F0B" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#aa)"/>
+<text x="1222" y="244" font-size="9" fill="#854F0B" text-anchor="middle">WAN2</text>
+<!-- Branch-A -->
+<rect x="10" y="606" width="354" height="298" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="2"/>
+<text x="187" y="627" text-anchor="middle" font-size="12" font-weight="500" fill="#085041">Branch-A (New York)</text>
+<text x="187" y="642" text-anchor="middle" font-size="9" fill="#0F6E56">192.168.10.0/24  ·  namespace: branch-a</text>
+<rect x="18" y="648" width="338" height="16" rx="4" fill="#F0997B" stroke="#993C1D" stroke-width="1"/>
+<text x="187" y="660" text-anchor="middle" font-size="9" font-weight="500" fill="#712B13">⚠ 192.168.10.0/24 overlaps Branch-B — namespace isolation required</text>
+<rect x="18" y="668" width="338" height="40" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="28" y="684" font-weight="500" fill="#085041">cEdge-BRA (Cisco ISR4331)</text>
+<text x="28" y="698" fill="#0F6E56">192.168.10.1  WAN1 100.64.1.1  WAN2 100.64.11.1</text>
+<rect x="18" y="712" width="163" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="28" y="727" font-weight="500" fill="#085041">C9300-BRA</text>
+<text x="28" y="741" fill="#0F6E56">192.168.10.2  NetFlow→2055</text>
+<rect x="185" y="712" width="171" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="195" y="727" font-weight="500" fill="#085041">EX2300-BRA (Mist)</text>
+<text x="195" y="741" fill="#0F6E56">192.168.10.3  Mist-mgd</text>
+<rect x="18" y="750" width="338" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="28" y="765" font-weight="500" fill="#085041">AP43-BRA (Juniper Mist AP)</text>
+<text x="28" y="779" fill="#0F6E56">192.168.10.10  ·  SNMP v3  ·  traps→9162</text>
+<rect x="18" y="788" width="338" height="36" rx="5" fill="#085041" stroke="#085041"/>
+<text x="187" y="803" text-anchor="middle" font-weight="500" fill="#E1F5EE">Datadog Agent BRA  192.168.10.50</text>
+<text x="187" y="817" text-anchor="middle" fill="#5DCAA5">ns:branch-a  ·  autodiscovery 192.168.10.0/24</text>
+<!-- BrA WAN lines -->
+<line x1="100" y1="606" x2="456" y2="390" stroke="#185FA5" stroke-width="1.8" marker-end="url(#ab)"/>
+<line x1="140" y1="606" x2="496" y2="390" stroke="#854F0B" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#aa)"/>
+<text x="248" y="500" font-size="9" fill="#185FA5" text-anchor="middle">WAN1/SP1</text>
+<text x="320" y="516" font-size="9" fill="#854F0B" text-anchor="middle">WAN2/SP2</text>
+<!-- Branch-B -->
+<rect x="623" y="606" width="354" height="298" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="2"/>
+<text x="800" y="627" text-anchor="middle" font-size="12" font-weight="500" fill="#085041">Branch-B (Boston)</text>
+<text x="800" y="642" text-anchor="middle" font-size="9" fill="#0F6E56">192.168.10.0/24  ·  namespace: branch-b</text>
+<rect x="631" y="648" width="338" height="16" rx="4" fill="#F0997B" stroke="#993C1D" stroke-width="1"/>
+<text x="800" y="660" text-anchor="middle" font-size="9" font-weight="500" fill="#712B13">⚠ 192.168.10.0/24 overlaps Branch-A — namespace isolation required</text>
+<rect x="631" y="668" width="338" height="40" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="641" y="684" font-weight="500" fill="#085041">cEdge-BRB (Cisco ISR4331)</text>
+<text x="641" y="698" fill="#0F6E56">192.168.10.1  WAN1 100.64.2.1  WAN2 100.64.12.1</text>
+<rect x="631" y="712" width="163" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="641" y="727" font-weight="500" fill="#085041">C9300-BRB</text>
+<text x="641" y="741" fill="#0F6E56">192.168.10.2  NetFlow→2055</text>
+<rect x="798" y="712" width="171" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="808" y="727" font-weight="500" fill="#085041">EX2300-BRB (Mist)</text>
+<text x="808" y="741" fill="#0F6E56">192.168.10.3  Mist-mgd</text>
+<rect x="631" y="750" width="338" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="641" y="765" font-weight="500" fill="#085041">AP43-BRB (Juniper Mist AP)</text>
+<text x="641" y="779" fill="#0F6E56">192.168.10.10  ·  SNMP v3  ·  traps→9162</text>
+<rect x="631" y="788" width="338" height="36" rx="5" fill="#085041" stroke="#085041"/>
+<text x="800" y="803" text-anchor="middle" font-weight="500" fill="#E1F5EE">Datadog Agent BRB  192.168.10.50</text>
+<text x="800" y="817" text-anchor="middle" fill="#5DCAA5">ns:branch-b  ·  autodiscovery 192.168.10.0/24</text>
+<!-- BrB WAN lines -->
+<line x1="760" y1="606" x2="752" y2="390" stroke="#185FA5" stroke-width="1.8" marker-end="url(#ab)"/>
+<line x1="800" y1="606" x2="792" y2="390" stroke="#854F0B" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#aa)"/>
+<!-- Branch-C -->
+<rect x="1236" y="606" width="354" height="282" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="2"/>
+<text x="1413" y="627" text-anchor="middle" font-size="12" font-weight="500" fill="#085041">Branch-C (Los Angeles)</text>
+<text x="1413" y="642" text-anchor="middle" font-size="9" fill="#0F6E56">10.3.0.0/24  ·  namespace: branch-c (unique)</text>
+<rect x="1244" y="652" width="338" height="40" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="1254" y="668" font-weight="500" fill="#085041">cEdge-BRC (Cisco ISR4331)</text>
+<text x="1254" y="682" fill="#0F6E56">10.3.0.1  WAN1 100.64.3.1  WAN2 100.64.13.1</text>
+<rect x="1244" y="696" width="163" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="1254" y="711" font-weight="500" fill="#085041">C9300-BRC</text>
+<text x="1254" y="725" fill="#0F6E56">10.3.0.2  NetFlow→2055</text>
+<rect x="1411" y="696" width="171" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="1421" y="711" font-weight="500" fill="#085041">EX2300-BRC (Mist)</text>
+<text x="1421" y="725" fill="#0F6E56">10.3.0.3  Mist-mgd</text>
+<rect x="1244" y="734" width="338" height="34" rx="5" fill="#9FE1CB" stroke="#0F6E56" stroke-width="1"/>
+<text x="1254" y="749" font-weight="500" fill="#085041">AP43-BRC (Juniper Mist AP)</text>
+<text x="1254" y="763" fill="#0F6E56">10.3.0.10  ·  SNMP v3  ·  traps→9162</text>
+<rect x="1244" y="772" width="338" height="36" rx="5" fill="#085041" stroke="#085041"/>
+<text x="1413" y="787" text-anchor="middle" font-weight="500" fill="#E1F5EE">Datadog Agent BRC  10.3.0.50</text>
+<text x="1413" y="801" text-anchor="middle" fill="#5DCAA5">ns:branch-c  ·  autodiscovery 10.3.0.0/24</text>
+<!-- BrC WAN lines -->
+<line x1="1360" y1="606" x2="1145" y2="390" stroke="#185FA5" stroke-width="1.8" marker-end="url(#ab)"/>
+<line x1="1400" y1="606" x2="1185" y2="390" stroke="#854F0B" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#aa)"/>
+<text x="1260" y="500" font-size="9" fill="#185FA5" text-anchor="middle">WAN1/SP1</text>
+<text x="1300" y="516" font-size="9" fill="#854F0B" text-anchor="middle">WAN2/SP2</text>
+<!-- Legend -->
+<rect x="983" y="606" width="240" height="282" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1"/>
+<text x="997" y="626" font-size="11" font-weight="500" fill="#2C2C2A">Legend</text>
+<rect x="997" y="634" width="10" height="10" rx="2" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.5"/><text x="1012" y="643" fill="#444441">Datacenter site</text>
+<rect x="997" y="650" width="10" height="10" rx="2" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.5"/><text x="1012" y="659" fill="#444441">Branch site (Juniper Mist)</text>
+<rect x="997" y="666" width="10" height="10" rx="2" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.5"/><text x="1012" y="675" fill="#444441">AWS Cloud</text>
+<rect x="997" y="682" width="10" height="10" rx="2" fill="#C0DD97" stroke="#3B6D11" stroke-width="1.5"/><text x="1012" y="691" fill="#444441">Meraki (DC WiFi + Switching)</text>
+<rect x="997" y="698" width="10" height="10" rx="2" fill="#FAEEDA" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="3 2"/><text x="1012" y="707" fill="#444441">SP WAN / SD-WAN fabric</text>
+<line x1="997" y1="722" x2="1007" y2="722" stroke="#185FA5" stroke-width="2" marker-end="url(#ab)"/><text x="1012" y="726" fill="#444441">WAN1/ISP-1 (primary)</text>
+<line x1="997" y1="738" x2="1007" y2="738" stroke="#854F0B" stroke-width="1.5" stroke-dasharray="4 2" marker-end="url(#aa)"/><text x="1012" y="742" fill="#444441">WAN2/ISP-2 (secondary)</text>
+<rect x="997" y="748" width="10" height="10" rx="2" fill="#0C447C"/><text x="1012" y="757" fill="#444441">Datadog Agent host</text>
+<rect x="997" y="764" width="10" height="10" rx="2" fill="#F0997B" stroke="#993C1D" stroke-width="1"/><text x="1012" y="773" fill="#444441">Overlapping IP subnet</text>
+<text x="997" y="800" font-size="9" fill="#5F5E5A">SNMP: v3 authPriv (SHA256/AES256)</text>
+<text x="997" y="814" font-size="9" fill="#5F5E5A">Meraki: Dashboard API (not SNMP)</text>
+<text x="997" y="828" font-size="9" fill="#5F5E5A">Mist: SNMP v3 + Mist Cloud API</text>
+<text x="997" y="842" font-size="9" fill="#5F5E5A">Traps: port 9162 (iptables ← 162)</text>
+<text x="997" y="856" font-size="9" fill="#5F5E5A">Syslog: port 5014 (iptables ← 514)</text>
+<text x="997" y="870" font-size="9" fill="#5F5E5A">Ping: all sites (ICMP enabled)</text>
+</svg>
