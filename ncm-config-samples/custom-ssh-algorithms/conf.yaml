@@ -1,0 +1,35 @@
+# NCM — Custom SSH algorithms for legacy/hardened devices
+#
+# Some devices — often older gear or devices hardened to a strict cipher
+# suite by security policy — fail the SSH handshake against the Agent's
+# default algorithm set with an error like "no supported methods remain" or
+# "no common algorithm". This is a transport-layer negotiation failure, not
+# a credentials problem, and is easy to misdiagnose as one.
+#
+# Fix: explicitly list the ciphers/key exchanges/host key algorithms the
+# device actually supports. Check the device's own SSH server config or logs
+# to find out what it offers, rather than guessing.
+#
+# Reference for valid values: https://pkg.go.dev/golang.org/x/crypto/ssh#pkg-constants
+
+init_config:
+  namespace: default
+  min_collection_interval: 900
+  ssh:
+    timeout: 30
+    known_hosts_path: /etc/datadog-agent/.ssh/known_hosts
+    insecure_skip_verify: false
+    # These apply globally to all instances in this file. There is no documented
+    # per-instance override — if you have a mixed fleet where only some devices
+    # need non-default algorithms, consider splitting them into a separate
+    # conf.yaml / instance file so the override doesn't affect devices that
+    # work fine with the defaults.
+    ciphers: [aes128-gcm@openssh.com, aes128-ctr, aes192-ctr]
+    key_exchanges: [diffie-hellman-group14-sha256, ecdh-sha2-nistp256]
+    host_key_algorithms: [ssh-ed25519]
+
+instances:
+  - ip_address: <LEGACY_DEVICE_IP>
+    auth:
+      username: <USERNAME>
+      password: <PASSWORD>
