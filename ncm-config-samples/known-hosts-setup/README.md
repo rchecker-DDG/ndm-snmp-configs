@@ -27,6 +27,18 @@ keep it updated when a device's host key legitimately changes (e.g. after a
 hardware replacement or OS reinstall) — otherwise NCM will start failing
 verification for that device until the entry is refreshed.
 
+## What the file actually looks like
+
+See [`known_hosts.example`](known_hosts.example) in this directory for an
+annotated sample showing the standard OpenSSH `known_hosts` formats you'll
+see in practice: a plain entry keyed by IP, an entry keyed by hostname,
+multiple aliases sharing one key, a **hashed** entry (the `ssh-keyscan -H`
+output — recommended beyond a small lab, since it doesn't reveal your device
+inventory if the file leaks), and an entry for a device on a non-default SSH
+port. Every key blob in that example is random, fake data for illustrating
+the format only — never copy the key material itself, only the shape of
+the lines.
+
 ## The insecure_skip_verify tradeoff
 
 Setting `insecure_skip_verify: true` makes NCM accept any host key the device
