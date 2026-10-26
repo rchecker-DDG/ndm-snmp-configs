@@ -66,7 +66,7 @@ sequenceDiagram
     Agent->>Agent: 10. Close SSH session
     Agent->>Intake: 11. Send config text + device metadata<br/>(device id, namespace, timestamp) over HTTPS
     Intake->>NCM: 12. Route payload to NCM service
-    NCM->>NCM: 13. Store new config version;<br/>diff against last stored version for this device
+    NCM->>NCM: 13. Store new config version,<br/>diff against last stored version for this device
     NCM->>NCM: 14. Generate AI natural-language<br/>summary of the diff
     NCM->>UI: 15. Surface new version, diff,<br/>and summary on device's Configuration tab
 ```
