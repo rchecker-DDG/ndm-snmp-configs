@@ -1,0 +1,35 @@
+# Example OpenSSH known_hosts file for NCM's ssh.known_hosts_path.
+#
+# Every key blob below is RANDOM, FAKE DATA — it is NOT a real host key and
+# will not authenticate against any real device. This file exists to show
+# the FORMAT only. Generate your own real entries with ssh-keyscan (see
+# README.md in this directory), and verify each fingerprint out-of-band
+# before trusting it.
+#
+# Lines starting with '#' and blank lines are ignored by OpenSSH's known_hosts
+# parser, same as this file demonstrates.
+
+# --- Plain entry, keyed by IP address ---
+# Format: <host-or-ip>[,<alias>] <key-type> <base64-public-key> [comment]
+<DEVICE_IP_1> ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIhSTSc3DR8k2vHBazi5nJrg56/nhbEKLVd2EbcSBpL7F core-switch-dc1
+
+# --- Plain entry, keyed by hostname instead of IP ---
+# Useful if you connect by hostname rather than ip_address in conf.yaml,
+# though NCM's conf.yaml uses ip_address, so matching by IP (above) is the
+# common case. Older platforms may only offer RSA host keys.
+edge-router.lab.internal ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDWYmx0GOow8FYqXW5oAmUdq8bzWII532ZJRVya2ly+E9vaxLbbbR6o8RNLt2KHhjljMbatEuaak21wxM2pyiLmD1Q4FzjT3VBAsPSrxfPi4dTIWzQwV7wUOhcqFT9nKQx7an
+
+# --- Multiple hostnames/aliases for the same key, comma-separated ---
+<DEVICE_IP_2>,leaf-switch-01,leaf-switch-01.lab.internal ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBPmpofHv6HWUgkp3J97yxNH0e4TSdi7ou7pCTGHmIhvSEZYFbdhUFYcxCfMVn
+
+# --- Hashed hostname entry (ssh-keyscan -H output) ---
+# The leading "|1|<salt>|<hash>" form hides the actual hostname/IP in the
+# file, so a leaked known_hosts doesn't reveal your device inventory. This
+# is what `ssh-keyscan -H` produces (see README.md) and is the recommended
+# form for anything beyond a small lab.
+|1|nfvH6S1ucvXleKdS4UU/5h7ijSA=|PbiNiQQ2bQg4rInKbbfhdTalpzE= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIhSTSc3DR8k2vHBazi5nJrg56/nhbEKLVd2EbcSBpL7F
+
+# --- Non-default SSH port, bracket notation ---
+# If a device listens on a non-standard SSH port, the host portion is
+# bracketed with the port appended, matching OpenSSH's own convention.
+[<DEVICE_IP_3>]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIhSTSc3DR8k2vHBazi5nJrg56/nhbEKLVd2EbcSBpL7F
