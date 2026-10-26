@@ -1,9 +1,13 @@
 # NCM — Multi-vendor device list (no autodiscovery)
 #
+# A filled-in working example of a small, realistic mixed-vendor fleet —
+# not just a bracketed template. IPs use the RFC 5737 documentation range
+# (198.51.100.0/24), so nothing here resembles real production infra. Copy
+# this file, then change each device's IP/credentials to your own fleet.
+#
 # Unlike NDM's SNMP integration, NCM does not support subnet/network
 # autodiscovery — every device you want configuration tracking for must be
-# its own explicit entry under `instances`. This sample shows a small,
-# realistic mixed-vendor fleet as a template for building out your own list.
+# its own explicit entry under `instances`.
 #
 # NCM auto-detects the vendor/OS profile per device and runs the matching
 # vendor-specific commands over SSH — you don't declare a vendor or profile
@@ -19,28 +23,28 @@ init_config:
 
 instances:
   # Core switch — Cisco IOS
-  - ip_address: <CORE_SWITCH_IP>
+  - ip_address: 198.51.100.20     # CHANGE THIS
     auth:
-      username: <USERNAME>
-      password: <PASSWORD>
+      username: ncm-readonly      # CHANGE THIS
+      password: "Example-Password-123"   # CHANGE THIS
 
   # Edge router — Juniper JunOS
-  - ip_address: <EDGE_ROUTER_IP>
+  - ip_address: 198.51.100.21     # CHANGE THIS
     auth:
-      username: <USERNAME>
-      password: <PASSWORD>
+      username: ncm-readonly      # CHANGE THIS
+      password: "Example-Password-123"   # CHANGE THIS
 
-  # Data center leaf — Arista EOS
-  - ip_address: <LEAF_SWITCH_IP>
+  # Data center leaf — Arista EOS (key-based auth, see single-device-ssh-key/)
+  - ip_address: 198.51.100.22     # CHANGE THIS
     auth:
-      username: <USERNAME>
-      private_key_file: <PRIVATE_KEY_PATH>
+      username: ncm-readonly      # CHANGE THIS
+      private_key_file: /etc/datadog-agent/.ssh/ncm_ed25519   # CHANGE THIS
 
   # Perimeter firewall — FortiGate FortiOS
-  - ip_address: <FIREWALL_IP>
+  - ip_address: 198.51.100.23     # CHANGE THIS
     auth:
-      username: <USERNAME>
-      password: <PASSWORD>
+      username: ncm-readonly      # CHANGE THIS
+      password: "Example-Password-123"   # CHANGE THIS
 
   # Add one entry per device. For fleets beyond a handful of devices,
   # see scale-templating/ for a generate-the-YAML-from-inventory pattern

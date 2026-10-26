@@ -34,7 +34,9 @@ thing to copy exactly, even before you fill in real values.
 ## Install
 
 1. Copy `conf.yaml` to `/etc/datadog-agent/conf.d/network_config_management.d/conf.yaml`.
-2. Replace every `<PLACEHOLDER>`, including `known_hosts_path` with a real, populated file.
+2. This is a filled-in example (IP `198.51.100.10` is from the RFC 5737 documentation
+   range) — change the three lines marked `# CHANGE THIS` to your own device's IP,
+   username, and password, and point `known_hosts_path` at a real, populated file.
 3. Restart the Agent (`sudo systemctl restart datadog-agent` or your platform's equivalent).
 4. Confirm the device appears with configuration history in the NCM tab of its NDM device page —
    allow up to one `min_collection_interval` for the first pull.

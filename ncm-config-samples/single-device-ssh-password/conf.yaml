@@ -1,20 +1,23 @@
 # NCM — Single device, SSH username/password
-# The simplest realistic starting point for Network Configuration Management.
-# Fill the <PLACEHOLDERS> and drop in
-# /etc/datadog-agent/conf.d/network_config_management.d/conf.yaml, then restart the Agent.
+#
+# This is a filled-in, working example — not just a template. The IP address
+# below (198.51.100.10) is from the documentation-only range reserved by
+# RFC 5737, and the username/password are example values. Copy this file,
+# then change ONLY the three values marked "# CHANGE THIS" to match your
+# own device and credentials; everything else can stay as-is for a simple
+# single-device setup.
 #
 # NCM requires the device to already be monitored by NDM (SNMP) — NCM adds
 # config backup/diff/rollback on top of an existing NDM device, it does not
 # replace the SNMP conf.yaml.
 
 init_config:
-  namespace: default              # must match the namespace the device uses in NDM (snmp.d), default "default"
+  namespace: default              # must match the namespace the device uses in NDM (snmp.d); "default" if you never set one
   min_collection_interval: 900    # seconds between config pulls; 900 (15 min) is the default, shown for clarity
   ssh:
     timeout: 30                   # seconds to establish the TCP/SSH connection before failing
-    known_hosts_path: <KNOWN_HOSTS_PATH>   # e.g. /etc/datadog-agent/.ssh/known_hosts — must exist and contain
-                                            # a real entry for this device's host key. See known-hosts-setup/
-                                            # for how to populate it. This is NOT a placeholder file to leave empty.
+    known_hosts_path: /etc/datadog-agent/.ssh/known_hosts   # must exist and contain this device's real host key —
+                                                             # see known-hosts-setup/known_hosts.example for the format
     insecure_skip_verify: false   # leave false in production — see known-hosts-setup/README.md for the tradeoff
 
 # IMPORTANT: `instances` is a top-level list, as a sibling of `init_config`,
@@ -23,7 +26,8 @@ init_config:
 # errors like "no valid instances" or "no SSH configuration found" with no
 # obvious pointer back to the indentation itself.
 instances:
-  - ip_address: <DEVICE_IP>       # the device IP; must match (or resolve to) the device already in NDM
+  - ip_address: 198.51.100.10     # CHANGE THIS — your device's real management IP
     auth:
-      username: <USERNAME>        # SSH username — see least-privilege-service-account/ for scoping this account
-      password: <PASSWORD>        # plaintext here for clarity; use secrets-management/ for a production-safe version
+      username: ncm-readonly      # CHANGE THIS — see least-privilege-service-account/ for scoping this account
+      password: "Example-Password-123"   # CHANGE THIS — plaintext here for clarity only;
+                                          # use secrets-management/ for a production-safe version

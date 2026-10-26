@@ -1,5 +1,10 @@
 # NCM — Custom SSH algorithms for legacy/hardened devices
 #
+# A filled-in working example — 203.0.113.5 is from the RFC 5737
+# documentation range, representing a legacy device that needs non-default
+# SSH algorithms. Copy this file, then change the IP/credentials and the
+# algorithm lists to match what your actual device supports.
+#
 # Some devices — often older gear or devices hardened to a strict cipher
 # suite by security policy — fail the SSH handshake against the Agent's
 # default algorithm set with an error like "no supported methods remain" or
@@ -23,13 +28,15 @@ init_config:
     # per-instance override — if you have a mixed fleet where only some devices
     # need non-default algorithms, consider splitting them into a separate
     # conf.yaml / instance file so the override doesn't affect devices that
-    # work fine with the defaults.
+    # work fine with the defaults. The three algorithms below are a realistic
+    # example set for an older Cisco IOS device — CHANGE to match what your
+    # specific device actually offers.
     ciphers: [aes128-gcm@openssh.com, aes128-ctr, aes192-ctr]
     key_exchanges: [diffie-hellman-group14-sha256, ecdh-sha2-nistp256]
     host_key_algorithms: [ssh-ed25519]
 
 instances:
-  - ip_address: <LEGACY_DEVICE_IP>
+  - ip_address: 203.0.113.5       # CHANGE THIS — your legacy device's real management IP
     auth:
-      username: <USERNAME>
-      password: <PASSWORD>
+      username: ncm-readonly      # CHANGE THIS
+      password: "Example-Password-123"   # CHANGE THIS

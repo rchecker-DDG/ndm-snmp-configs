@@ -7,15 +7,15 @@ init_config:
     insecure_skip_verify: false
 
 instances:
-  - ip_address: <DEVICE_IP_1>
+  - ip_address: 198.51.100.40
     auth:
-      username: <USERNAME>
+      username: ncm-readonly
       password: ENC[ncm_svc_password]
-  - ip_address: <DEVICE_IP_2>
+  - ip_address: 198.51.100.41
     auth:
-      username: <USERNAME>
+      username: ncm-readonly
       password: ENC[ncm_svc_password]
-  - ip_address: <DEVICE_IP_3>
+  - ip_address: 198.51.100.42
     auth:
-      username: <USERNAME>
+      username: ncm-readonly
       private_key_file: ENC[ncm_svc_private_key]

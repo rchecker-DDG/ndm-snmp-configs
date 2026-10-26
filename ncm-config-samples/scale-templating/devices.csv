@@ -1,4 +1,4 @@
 ip_address,username,auth_type,secret_ref
-<DEVICE_IP_1>,<USERNAME>,password,ncm_svc_password
-<DEVICE_IP_2>,<USERNAME>,password,ncm_svc_password
-<DEVICE_IP_3>,<USERNAME>,key,ncm_svc_private_key
+198.51.100.40,ncm-readonly,password,ncm_svc_password
+198.51.100.41,ncm-readonly,password,ncm_svc_password
+198.51.100.42,ncm-readonly,key,ncm_svc_private_key
