@@ -34,5 +34,6 @@ and not something else:
 1. Identify the exact algorithms your device supports (device SSH config/logs, or vendor docs).
 2. Copy `conf.yaml` to `/etc/datadog-agent/conf.d/network_config_management.d/conf.yaml`.
 3. Replace the placeholder algorithm lists with values that match your actual device.
-4. Replace `<PLACEHOLDER>` credentials.
+4. This is a filled-in example (IP `203.0.113.5` is from the RFC 5737 documentation
+   range) — change the `# CHANGE THIS` lines to your own device's credentials.
 5. Restart the Agent (`sudo systemctl restart datadog-agent` or your platform's equivalent).

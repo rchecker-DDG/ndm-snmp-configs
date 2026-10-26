@@ -28,5 +28,7 @@ any related secrets out of plaintext `conf.yaml`.
 1. Place the private key on the Agent host with restrictive permissions (e.g. `chmod 600`)
    and an owner the Agent process can read.
 2. Copy `conf.yaml` to `/etc/datadog-agent/conf.d/network_config_management.d/conf.yaml`.
-3. Replace every `<PLACEHOLDER>`.
+3. This is a filled-in example (IP `198.51.100.11` is from the RFC 5737 documentation
+   range) — change the three lines marked `# CHANGE THIS` to your own device's IP,
+   username, and private key path.
 4. Restart the Agent (`sudo systemctl restart datadog-agent` or your platform's equivalent).

@@ -1,12 +1,16 @@
 # NCM — known_hosts setup and the insecure_skip_verify tradeoff
 #
+# A filled-in working example — 198.51.100.10 matches the first device in
+# known_hosts.example in this same directory, so the two files are
+# consistent with each other. Change the values marked "# CHANGE THIS".
+#
 # `known_hosts_path` is one of the most commonly misconfigured NCM fields.
 # It must point to a REAL OpenSSH known_hosts file that already contains
-# this device's actual host key — the same format and file `ssh` itself
-# uses, not an empty placeholder file the Agent will populate for you.
+# this device's actual host key — see known_hosts.example for the format —
+# not an empty placeholder file the Agent will populate for you.
 #
 # Populate it before first use, from a host that can already reach the device:
-#   ssh-keyscan -H <DEVICE_IP> >> /etc/datadog-agent/.ssh/known_hosts
+#   ssh-keyscan -H 198.51.100.10 >> /etc/datadog-agent/.ssh/known_hosts
 # Then verify the fingerprint out-of-band (e.g. against the vendor console or
 # a change ticket) before trusting it — ssh-keyscan itself does not verify
 # authenticity, it only retrieves whatever key the device currently presents.
@@ -28,7 +32,7 @@ init_config:
     # insecure_skip_verify: true
 
 instances:
-  - ip_address: <DEVICE_IP>
+  - ip_address: 198.51.100.10     # CHANGE THIS — your device's real management IP
     auth:
-      username: <USERNAME>
-      password: <PASSWORD>
+      username: ncm-readonly      # CHANGE THIS
+      password: "Example-Password-123"   # CHANGE THIS — see secrets-management/ for a production-safe version

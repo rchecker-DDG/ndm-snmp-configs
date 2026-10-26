@@ -46,8 +46,12 @@ platform's equivalent).
 
 ## ⚠️ These are examples — validate before production
 
-Every file ships with `<ANGLE_BRACKET>` placeholders. Replace **all** of
-them, validate against a non-production device first, and treat SSH
-credentials and private keys as secrets — see
-[`secrets-management/`](secrets-management/) before putting real credentials
-in a committed file.
+Every sample is a filled-in, working example rather than a bracketed
+template — IPs use RFC 5737 documentation ranges (`192.0.2.0/24`,
+`198.51.100.0/24`, `203.0.113.0/24`) and hostnames use RFC 2606 reserved
+domains (`.example.net`), so nothing resembles real production infrastructure.
+Lines you need to change are marked `# CHANGE THIS`. Replace **all** of
+them with your own device IPs and credentials, validate against a
+non-production device first, and treat SSH credentials and private keys as
+secrets — see [`secrets-management/`](secrets-management/) before putting
+real credentials in a committed file.

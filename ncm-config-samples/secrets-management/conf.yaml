@@ -1,11 +1,12 @@
 # NCM — Keeping SSH credentials out of plaintext conf.yaml
 #
-# Every other sample in this directory shows <PASSWORD> / <PRIVATE_KEY_PATH>
-# as literal placeholders for clarity, but shipping real credentials in
-# plaintext conf.yaml is a production anti-pattern. The Datadog Agent's
-# secrets management feature lets you reference an external secret instead,
-# resolved at Agent startup via a `secret_backend_command` you configure
-# (e.g. backed by Vault, AWS Secrets Manager, or a simple local script).
+# A filled-in working example — 198.51.100.30 is from the RFC 5737
+# documentation range. Every other sample in this directory shows a literal
+# example password for clarity, but shipping real credentials in plaintext
+# conf.yaml is a production anti-pattern. The Datadog Agent's secrets
+# management feature lets you reference an external secret instead, resolved
+# at Agent startup via a `secret_backend_command` you configure (e.g. backed
+# by Vault, AWS Secrets Manager, or a simple local script).
 #
 # This is a general Agent capability, not NCM-specific — validate that your
 # secret backend is already working for another integration (or test it
@@ -21,7 +22,9 @@ init_config:
     insecure_skip_verify: false
 
 instances:
-  - ip_address: <DEVICE_IP>
+  - ip_address: 198.51.100.30     # CHANGE THIS — your device's real management IP
     auth:
       username: ENC[ncm_svc_account_username]   # resolved by your configured secret_backend_command
       password: ENC[ncm_svc_account_password]   # resolved by your configured secret_backend_command
+      # The handle names above (ncm_svc_account_username, ncm_svc_account_password)
+      # are examples — use whatever names you registered in your secret backend.

@@ -1,8 +1,8 @@
 # Keeping SSH credentials out of plaintext conf.yaml
 
-Every other sample in this directory uses `<PASSWORD>` / `<PRIVATE_KEY_PATH>`
-as a literal placeholder, for clarity. In production, don't leave real
-credentials in plaintext inside `conf.yaml` — use the [Datadog Agent's
+Every other sample in this directory uses a filled-in example password or
+private key path directly in `conf.yaml`, for clarity. In production, don't
+leave real credentials in plaintext inside `conf.yaml` — use the [Datadog Agent's
 secrets management
 feature](https://docs.datadoghq.com/agent/configuration/secrets-management/)
 instead, which resolves `ENC[<handle>]` references at Agent startup through a

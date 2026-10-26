@@ -1,25 +1,29 @@
 # NCM — Single device, SSH private-key authentication
+#
+# A filled-in working example, not just a template. 198.51.100.11 is from
+# the documentation-only range reserved by RFC 5737. Copy this file, then
+# change the values marked "# CHANGE THIS" to match your own device.
+#
 # Prefer this over password auth where your SSH/network team allows key-based
 # access — it avoids storing a plaintext password and matches most NAC/AAA
-# key-rotation policies. Fill the <PLACEHOLDERS> and drop in
-# /etc/datadog-agent/conf.d/network_config_management.d/conf.yaml, then restart the Agent.
+# key-rotation policies.
 
 init_config:
   namespace: default
   min_collection_interval: 900
   ssh:
     timeout: 30
-    known_hosts_path: <KNOWN_HOSTS_PATH>   # see known-hosts-setup/ — must contain this device's real host key
+    known_hosts_path: /etc/datadog-agent/.ssh/known_hosts   # see known-hosts-setup/known_hosts.example for the format
     insecure_skip_verify: false
 
 instances:
-  - ip_address: <DEVICE_IP>
+  - ip_address: 198.51.100.11     # CHANGE THIS — your device's real management IP
     auth:
-      username: <USERNAME>
+      username: ncm-readonly      # CHANGE THIS
       # At least one of password or private_key_file is required; the docs don't
       # commit to a precedence order if both are set. A recurring source of
       # support confusion is setting both and assuming key auth is definitely
       # what's being used — pick one deliberately and leave the other unset
       # (or commented) so there's no ambiguity about which credential NCM used.
-      private_key_file: <PRIVATE_KEY_PATH>   # e.g. /etc/datadog-agent/.ssh/ncm_id_ed25519
-      # password: <PASSWORD>                 # leave unset when using key auth — don't set both
+      private_key_file: /etc/datadog-agent/.ssh/ncm_ed25519   # CHANGE THIS — path to your real private key
+      # password: "Example-Password-123"   # leave unset when using key auth — don't set both

@@ -11,8 +11,10 @@ you, and an empty or missing file will fail host-key verification.
 From a host that can already reach the device over SSH:
 
 ```bash
-ssh-keyscan -H <DEVICE_IP> >> /etc/datadog-agent/.ssh/known_hosts
+ssh-keyscan -H 198.51.100.10 >> /etc/datadog-agent/.ssh/known_hosts
 ```
+
+(Replace `198.51.100.10` with your actual device's IP — that's just the example address used throughout this directory's sample files.)
 
 **Important:** `ssh-keyscan` retrieves whatever key the device presents right
 now — it does not verify the key is authentic. Before trusting the result,
@@ -56,5 +58,8 @@ actually opens the SSH connection.
 1. Run `ssh-keyscan` (or your organization's equivalent host-key distribution process)
    to populate `known_hosts`, and verify the fingerprint out-of-band.
 2. Copy `conf.yaml` to `/etc/datadog-agent/conf.d/network_config_management.d/conf.yaml`.
-3. Replace `<PLACEHOLDER>` values; keep `insecure_skip_verify: false` outside of a lab.
+3. This is a filled-in example (IP `198.51.100.10` is from the RFC 5737 documentation
+   range, matching `known_hosts.example`'s first entry) — change the `# CHANGE THIS`
+   lines to your own device's credentials, and keep `insecure_skip_verify: false`
+   outside of a lab.
 4. Restart the Agent (`sudo systemctl restart datadog-agent` or your platform's equivalent).

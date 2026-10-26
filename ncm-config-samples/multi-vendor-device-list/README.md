@@ -29,5 +29,6 @@ block from a CSV/inventory source instead.
 ## Install
 
 1. Copy `conf.yaml` to `/etc/datadog-agent/conf.d/network_config_management.d/conf.yaml`.
-2. Replace every `<PLACEHOLDER>` with your actual devices and credentials.
+2. This is a filled-in example fleet (IPs `198.51.100.20-23` are from the RFC 5737
+   documentation range) — change each `# CHANGE THIS` line to your own devices and credentials.
 3. Restart the Agent (`sudo systemctl restart datadog-agent` or your platform's equivalent).
