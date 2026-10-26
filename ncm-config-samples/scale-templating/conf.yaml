@@ -1,0 +1,21 @@
+init_config:
+  namespace: default
+  min_collection_interval: 900
+  ssh:
+    timeout: 30
+    known_hosts_path: /etc/datadog-agent/.ssh/known_hosts
+    insecure_skip_verify: false
+
+instances:
+  - ip_address: <DEVICE_IP_1>
+    auth:
+      username: <USERNAME>
+      password: ENC[ncm_svc_password]
+  - ip_address: <DEVICE_IP_2>
+    auth:
+      username: <USERNAME>
+      password: ENC[ncm_svc_password]
+  - ip_address: <DEVICE_IP_3>
+    auth:
+      username: <USERNAME>
+      private_key_file: ENC[ncm_svc_private_key]

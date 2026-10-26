@@ -1,0 +1,29 @@
+# NCM — Single device, SSH username/password
+# The simplest realistic starting point for Network Configuration Management.
+# Fill the <PLACEHOLDERS> and drop in
+# /etc/datadog-agent/conf.d/network_config_management.d/conf.yaml, then restart the Agent.
+#
+# NCM requires the device to already be monitored by NDM (SNMP) — NCM adds
+# config backup/diff/rollback on top of an existing NDM device, it does not
+# replace the SNMP conf.yaml.
+
+init_config:
+  namespace: default              # must match the namespace the device uses in NDM (snmp.d), default "default"
+  min_collection_interval: 900    # seconds between config pulls; 900 (15 min) is the default, shown for clarity
+  ssh:
+    timeout: 30                   # seconds to establish the TCP/SSH connection before failing
+    known_hosts_path: <KNOWN_HOSTS_PATH>   # e.g. /etc/datadog-agent/.ssh/known_hosts — must exist and contain
+                                            # a real entry for this device's host key. See known-hosts-setup/
+                                            # for how to populate it. This is NOT a placeholder file to leave empty.
+    insecure_skip_verify: false   # leave false in production — see known-hosts-setup/README.md for the tradeoff
+
+# IMPORTANT: `instances` is a top-level list, as a sibling of `init_config`,
+# NOT nested inside `ssh:`. Each `-` starts a new device. A single misplaced
+# indent here is the single most common NCM config mistake — it produces
+# errors like "no valid instances" or "no SSH configuration found" with no
+# obvious pointer back to the indentation itself.
+instances:
+  - ip_address: <DEVICE_IP>       # the device IP; must match (or resolve to) the device already in NDM
+    auth:
+      username: <USERNAME>        # SSH username — see least-privilege-service-account/ for scoping this account
+      password: <PASSWORD>        # plaintext here for clarity; use secrets-management/ for a production-safe version

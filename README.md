@@ -51,3 +51,14 @@ device before rolling out widely. Treat community strings and v3 keys as secrets
 Need something these samples don't cover? The companion
 [`ndm-snmp-conf-wizard`](https://github.com/rchecker-DDG/ndm-snmp-conf-wizard)
 repo is an interactive CLI that interviews you and emits a valid `conf.yaml`.
+
+## Network Configuration Management (NCM) samples
+
+NDM has a config backup/diff/rollback add-on — [Network Configuration
+Management](https://docs.datadoghq.com/network_monitoring/devices/config_management/)
+(NCM) — with its own `conf.yaml` under
+`conf.d/network_config_management.d/`. See
+[`ncm-config-samples/`](ncm-config-samples/) for a separate set of samples
+covering SSH auth, `known_hosts` setup, multi-vendor device lists, secrets
+management, scaling past hand-maintained device lists, and a consolidated
+best-practices checklist.

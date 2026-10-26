@@ -1,0 +1,47 @@
+# NCM — Multi-vendor device list (no autodiscovery)
+#
+# Unlike NDM's SNMP integration, NCM does not support subnet/network
+# autodiscovery — every device you want configuration tracking for must be
+# its own explicit entry under `instances`. This sample shows a small,
+# realistic mixed-vendor fleet as a template for building out your own list.
+#
+# NCM auto-detects the vendor/OS profile per device and runs the matching
+# vendor-specific commands over SSH — you don't declare a vendor or profile
+# field yourself, just the connection details.
+
+init_config:
+  namespace: default
+  min_collection_interval: 900
+  ssh:
+    timeout: 30
+    known_hosts_path: /etc/datadog-agent/.ssh/known_hosts
+    insecure_skip_verify: false
+
+instances:
+  # Core switch — Cisco IOS
+  - ip_address: <CORE_SWITCH_IP>
+    auth:
+      username: <USERNAME>
+      password: <PASSWORD>
+
+  # Edge router — Juniper JunOS
+  - ip_address: <EDGE_ROUTER_IP>
+    auth:
+      username: <USERNAME>
+      password: <PASSWORD>
+
+  # Data center leaf — Arista EOS
+  - ip_address: <LEAF_SWITCH_IP>
+    auth:
+      username: <USERNAME>
+      private_key_file: <PRIVATE_KEY_PATH>
+
+  # Perimeter firewall — FortiGate FortiOS
+  - ip_address: <FIREWALL_IP>
+    auth:
+      username: <USERNAME>
+      password: <PASSWORD>
+
+  # Add one entry per device. For fleets beyond a handful of devices,
+  # see scale-templating/ for a generate-the-YAML-from-inventory pattern
+  # instead of hand-maintaining this list.
