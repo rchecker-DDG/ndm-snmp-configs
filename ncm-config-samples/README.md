@@ -7,6 +7,11 @@ Monitoring (NDM)](https://docs.datadoghq.com/network_monitoring/devices/setup/).
 NCM requires the device to already be monitored via NDM's SNMP integration;
 see the SNMP samples in the repo root for that half of the setup.
 
+New to NCM? See [`ARCHITECTURE.md`](ARCHITECTURE.md) first — a diagram of
+where every component lives (device, Agent, Datadog backend, Private Action
+Runner) and a step-by-step walkthrough of the collection flow, from the
+Agent connecting over SSH to the config landing in the UI.
+
 Each scenario here is grounded in a real, recurring pattern seen in NCM
 support cases — fully anonymized; no customer names, hostnames, IP addresses,
 or org-identifying details are reflected anywhere in this directory.
