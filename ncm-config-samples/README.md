@@ -7,6 +7,8 @@ Monitoring (NDM)](https://docs.datadoghq.com/network_monitoring/devices/setup/).
 NCM requires the device to already be monitored via NDM's SNMP integration;
 see the SNMP samples in the repo root for that half of the setup.
 
+**Start here:** [`CONFIGURATION-GUIDE.md`](CONFIGURATION-GUIDE.md) is a step-by-step guide from zero to a working config backup, then rollback, with every YAML line explained.
+
 New to NCM? See [`ARCHITECTURE.md`](ARCHITECTURE.md) first — a diagram of
 where every component lives (device, Agent, Datadog backend, Private Action
 Runner) and a step-by-step walkthrough of the collection flow, from the
@@ -29,6 +31,7 @@ or org-identifying details are reflected anywhere in this directory.
 | [`least-privilege-service-account/`](least-privilege-service-account/) | Least-privilege service account | Scoping the SSH account NCM uses when your AAA/TACACS+ policy requires command authorization |
 | [`secrets-management/`](secrets-management/) | Secrets management | Keeping SSH credentials out of plaintext `conf.yaml` using the Agent's secret backend |
 | [`scale-templating/`](scale-templating/) | Scale templating | Generating `instances` from an inventory source instead of hand-maintaining it past ~50-100 devices |
+| [`rollback/`](rollback/) | Rollback | Enabling rollback: Agent 7.83+, Private Action Runner, Remote Configuration, write-capable account, local config store |
 
 See also [`BEST-PRACTICES.md`](BEST-PRACTICES.md) for a consolidated
 troubleshooting checklist drawn from the same support-case research.

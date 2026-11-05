@@ -1,0 +1,16 @@
+# Merge into /etc/datadog-agent/datadog.yaml (do not replace the whole file).
+# Requires Agent 7.83.0+ for rollback; 7.81+ to run the PAR inside the Agent.
+
+network_devices:
+  config_management:
+    rollback:
+      enabled: true                      # off by default
+
+# Private Action Runner running inside the Agent.
+# Prefer Fleet Automation → "Enable Agent to take action" where available.
+app_key: ENC[datadog_app_key]            # CHANGE THIS — app key with the on_prem_runner_write scope; keep it in a secret backend
+private_action_runner:
+  enabled: true
+  self_enroll: true
+  actions_allowlist:                     # default deny: only listed actions run
+    - com.datadoghq.remoteaction.networkconfigmanagement.rollbackConfig

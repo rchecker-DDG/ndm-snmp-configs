@@ -36,6 +36,15 @@ as Datadog adds vendor profiles), the recommendation is:
    support tickets on this topic turned out to be expected vendor behavior,
    not a setup error.
 
+## Known vendor-specific behavior
+
+| Vendor / OS | Behavior | What to do |
+|---|---|---|
+| Aruba AOS-W, F5 TMOS, FortiGate FortiOS, Juniper JunOS, Palo Alto PAN-OS | Running config only — no startup config is shown | Expected; not a failure |
+| Dell OS9 | Not supported (only **Dell OS10** is) | No workaround today; raise it as a feature request through your account team |
+| Palo Alto PAN-OS | Collection returning only the login banner/MOTD instead of the config | Upgrade the Agent — this was fixed in a later release — then check again |
+| Any | Device not on the supported list | NCM won't collect; check the [supported device profiles](https://docs.datadoghq.com/network_monitoring/devices/config_management/#supported-device-profiles) |
+
 ## Config for this scenario
 
 There's nothing unique about the `conf.yaml` for this scenario — it's the

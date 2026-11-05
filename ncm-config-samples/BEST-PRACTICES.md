@@ -1,4 +1,4 @@
-# NCM configuration best practices &amp; troubleshooting checklist
+# NCM configuration best practices & troubleshooting checklist
 
 A consolidated checklist drawn from recurring patterns in Network
 Configuration Management (NCM) support cases. Fully anonymized — every item
@@ -78,8 +78,43 @@ is already visible and healthy in NDM before troubleshooting NCM on top of
 it, since an NCM failure caused by an underlying NDM/device issue can look
 like an NCM-specific bug.
 
+## 9. Know what collection needs versus what rollback needs
+
+Collection (backup, diff, AI summary) is a regular Agent check. It needs SSH
+reachability, credentials and `known_hosts` — nothing else. Rollback adds
+Agent 7.83.0+, Remote Configuration, a Private Action Runner with the
+rollback action allowlisted, and a write-capable device account. If Remote
+Configuration or the PAR is disabled, collection keeps working and only
+rollback is unavailable. See [`rollback/`](rollback/).
+
+## 10. Size the interval knowing the Agent sends the full config every time
+
+The Agent sends the complete configuration on every `min_collection_interval`
+cycle, whether or not it changed; the Datadog backend does the change
+detection. A shorter interval therefore means more SSH logins on every device
+and more upload traffic, without making change detection any more accurate
+than "within one interval". Keep the 15-minute default unless you have a
+reason to change it.
+
+## 11. Upgrade the Agent before chasing vendor-specific oddities
+
+Vendor support and parsing fixes ship with Agent releases. For example, a
+PAN-OS symptom where collection returns only the login banner/MOTD instead
+of the configuration was fixed in the Agent. Check the vendor's minimum Agent
+version and upgrade before deeper troubleshooting.
+
+## 12. Use the Datadog MCP tools to query configs
+
+The Datadog MCP server exposes NCM tools —
+`get_network_device_configuration`, `diff_network_device_configurations` and
+`search_network_device_configuration` — that AI assistants (including Bits)
+can use to read, compare and search device configurations. The user behind
+the MCP connection needs the `ndm_device_config_read` (NCM Read) permission.
+
 ## Further reading
 
 - [NCM official documentation](https://docs.datadoghq.com/network_monitoring/devices/config_management/)
 - [NDM setup](https://docs.datadoghq.com/network_monitoring/devices/setup/) (prerequisite for NCM)
 - [Agent secrets management](https://docs.datadoghq.com/agent/configuration/secrets-management/)
+- [NCM rollback](https://docs.datadoghq.com/network_monitoring/devices/config_management_rollback/)
+- [Datadog MCP server](https://docs.datadoghq.com/bits_ai/mcp_server/)
