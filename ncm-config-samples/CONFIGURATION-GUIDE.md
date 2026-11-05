@@ -43,9 +43,7 @@ flowchart LR
     agent -. "SSH :22<br/>(apply prior config)" .-> device
 ```
 
-![Figure 1: NCM components and where they live](images/ncm-architecture-components.png)
-
-*Figure 1: NCM components and where they live. Solid lines are the regular collection path; the dotted line is rollback. Source:* [*ARCHITECTURE.md*](ARCHITECTURE.md)*.*
+*Figure 1: NCM components and where they live. Solid lines are the regular collection path; the dotted line is rollback. Source:* [*ARCHITECTURE.md*](ARCHITECTURE.md)*. A PNG of this diagram for slides and documents is in* [*images/ncm-architecture-components.png*](images/ncm-architecture-components.png)*.*
 
 Collection: the Agent gets passwords (from the file or a vault), logs in to each device over SSH, reads the config and sends it to Datadog over HTTPS. Rollback: Datadog sends the request to the Private Action Runner, which hands it to the Agent, which applies the old config over the same SSH path.
 
