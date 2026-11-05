@@ -1,0 +1,21 @@
+# /etc/datadog-agent/conf.d/network_config_management.d/conf.yaml
+# Same structure as the collection samples, plus optional local-store tuning.
+
+init_config:
+  namespace: default
+  min_collection_interval: 900
+  inventory_report_max_interval: 3600    # max seconds between stored-config inventory reports
+  store:
+    min_configs_per_device: 2            # always keep at least this many versions per device
+    max_configs_per_device: 24           # keep more to roll back further
+    max_raw_config_store_bytes: 2000000000   # total local store cap (2 GB)
+  ssh:
+    timeout: 30
+    known_hosts_path: /etc/datadog-agent/.ssh/known_hosts
+    insecure_skip_verify: false
+
+instances:
+  - ip_address: 198.51.100.10            # CHANGE THIS — Cisco IOS or Arista EOS device
+    auth:
+      username: ncm-rollback             # CHANGE THIS — account with write rights (separate from read-only)
+      password: ENC[ncm_rollback_password]   # CHANGE THIS — secret handle

@@ -20,28 +20,41 @@ full.
 flowchart LR
     subgraph customer_env["Customer environment"]
         direction TB
+        vault["Secrets backend<br/>(optional: ENC[] handles)"]
+        subgraph agent_host["Datadog Agent host"]
+            direction TB
+            agent["Datadog Agent<br/>- conf.d/snmp.d/conf.yaml (NDM)<br/>- conf.d/network_config_management.d/conf.yaml (NCM)<br/>- known_hosts file<br/>- credentials (plaintext or ENC[] refs)<br/>- local config store (rollback)"]
+            par["Private Action Runner<br/>(optional: rollback only;<br/>can run inside the Agent)"]
+        end
         device["Network device<br/>(Cisco IOS / JunOS / EOS / etc.)<br/>SSH daemon on :22"]
-        agent["Datadog Agent host<br/>- conf.d/snmp.d/conf.yaml (NDM)<br/>- conf.d/network_config_management.d/conf.yaml (NCM)<br/>- known_hosts file<br/>- credentials (plaintext or ENC[] secret refs)"]
-        par["Private Action Runner<br/>(optional — rollback only)"]
     end
 
     subgraph datadog_cloud["Datadog backend (SaaS)"]
         direction TB
-        intake["Agent intake<br/>(HTTPS)"]
+        intake["Agent intake<br/>(HTTPS :443)"]
         ndm_svc["NDM service<br/>device inventory, namespace,<br/>device identity"]
-        ncm_svc["NCM service<br/>config version storage,<br/>diff engine, AI summary"]
-        ui["NCM UI<br/>device page → Configuration tab"]
+        ncm_svc["NCM service<br/>version storage, change detection,<br/>diff engine, AI summary"]
+        ui["NCM UI, API and MCP tools<br/>device page → Configuration tab"]
     end
 
-    agent -- "SSH :22<br/>(auth + known_hosts)" --> device
-    device -- "config text<br/>(running/startup)" --> agent
-    agent -- "HTTPS payload<br/>(config + device metadata)" --> intake
+    vault -- "secrets at Agent start" --> agent
+    agent -- "SSH :22 (auth + known_hosts)<br/>read-only show commands" --> device
+    device -- "config text<br/>(running / startup)" --> agent
+    agent -- "HTTPS :443<br/>full config every interval" --> intake
     intake --> ncm_svc
     ncm_svc <-- "device identity,<br/>namespace" --> ndm_svc
     ncm_svc --> ui
-    ui -- "rollback request" --> par
-    par -- "SSH :22<br/>(apply prior config)" --> device
+    ui -- "rollback request<br/>(needs Remote Configuration)" --> par
+    par -- "IPC :5001" --> agent
+    agent -. "SSH :22<br/>(apply prior config)" .-> device
 ```
+
+A rendered PNG of this diagram is in [`images/ncm-architecture-components.png`](images/ncm-architecture-components.png) for use outside GitHub (slides, docs).
+
+**Two things this diagram makes explicit:**
+
+- **Collection does not depend on Remote Configuration or the Private Action Runner.** It is an ordinary Agent check. If Remote Configuration or the PAR is disabled, config backup, diff and AI summaries keep working; only rollback stops.
+- **The Agent sends the full configuration on every collection cycle.** It does not compare hashes locally. Change detection and diffing happen in the Datadog backend, which is why a new version only appears in the UI when something actually changed.
 
 ## 2. Step-by-step collection flow
 
@@ -64,9 +77,9 @@ sequenceDiagram
     Agent->>Device: 8. Issue vendor-specific read commands<br/>(e.g. show running-config / show startup-config<br/>equivalents, selected by detected vendor/OS)
     Device-->>Agent: 9. Return raw config text
     Agent->>Agent: 10. Close SSH session
-    Agent->>Intake: 11. Send config text + device metadata<br/>(device id, namespace, timestamp) over HTTPS
+    Agent->>Intake: 11. Send the full config text + device metadata<br/>(device id, namespace, timestamp) over HTTPS,<br/>every cycle, changed or not
     Intake->>NCM: 12. Route payload to NCM service
-    NCM->>NCM: 13. Store new config version,<br/>diff against last stored version for this device
+    NCM->>NCM: 13. Compare with the last stored version;<br/>store a new version and diff only if it changed
     NCM->>NCM: 14. Generate AI natural-language<br/>summary of the diff
     NCM->>UI: 15. Surface new version, diff,<br/>and summary on device's Configuration tab
 ```
@@ -77,12 +90,34 @@ Rollback is a separate, user-initiated flow, not something that happens on
 the `min_collection_interval` schedule:
 
 1. A user selects a prior configuration version in the NCM UI and requests rollback.
-2. The backend routes the request through a **Private Action Runner (PAR)** —
-   a customer-hosted component Datadog uses for actions that need to reach
-   back into the customer's network to make a change, as opposed to the
-   read-only collection flow above.
-3. The PAR connects to the device over SSH and applies the selected prior
-   configuration.
+2. The backend sends the request to a **Private Action Runner (PAR)** in the
+   customer network, delivered through Remote Configuration. The PAR can run
+   inside the Agent itself (Agent 7.81+) or on a separate host that can
+   reach the Agent.
+3. The PAR hands the request to the Agent over the Agent's local IPC port
+   (5001 by default).
+4. The **Agent** applies the selected prior configuration to the device over
+   the same SSH path it uses for collection, using the copies it keeps in its
+   local config store.
+
+```mermaid
+sequenceDiagram
+    participant UI as NCM UI
+    participant PAR as Private Action Runner
+    participant Agent as Datadog Agent<br/>(local config store)
+    participant Device as Network device
+
+    UI->>PAR: 1. Rollback request (via Remote Configuration)
+    PAR->>Agent: 2. Hand off over IPC :5001
+    Agent->>Device: 3. SSH :22, apply the chosen prior config
+    Device-->>Agent: 4. Result
+    Agent-->>UI: 5. Next collection shows the new running config
+```
+
+Rollback needs Agent 7.83.0+, `network_devices.config_management.rollback.enabled: true`
+in `datadog.yaml`, Remote Configuration, a PAR with the rollback action on its
+allowlist, and a device account with write rights. See
+[`rollback/`](rollback/) for the configuration.
 
 Because rollback writes to the device, the account used for it needs
 write/commit-capable privileges — see
@@ -95,7 +130,7 @@ It's worth internalizing the asymmetry these diagrams show: every step in
 the regular collection cycle (steps 3-10 above) is read-only — `show`-equivalent
 commands, no device state changes. Rollback is the only operation in the
 whole NCM feature set that writes to a device, and it only happens on
-request, through a different path (the PAR), not through the Agent's regular
-polling cycle. This is why a read-only service account is sufficient for
+request, through a different trigger path (UI → PAR → Agent), not through
+the Agent's regular polling cycle. This is why a read-only service account is sufficient for
 backup/diff/AI-summary, and why rollback access should be a deliberate,
 separately-reviewed grant.
